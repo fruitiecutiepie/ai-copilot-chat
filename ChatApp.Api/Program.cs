@@ -1,4 +1,5 @@
-﻿using ChatApp.Api.Hubs;
+﻿using ChatApp.Api.Data;
+using ChatApp.Api.Hubs;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,9 @@ builder.Services.AddCors(opt => opt.AddPolicy("AllowClient", p =>
    .AllowAnyMethod()
    .AllowCredentials();
 }));
+builder.Services.AddDbContext<ChatDbContext>(opt =>
+  opt.UseSqlite("Data Source=./data/chat.db"));
+
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
   .AddJsonOptions(opt =>
