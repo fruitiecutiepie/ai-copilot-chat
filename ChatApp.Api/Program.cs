@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using ChatApp.Api.Data;
+using ChatApp.Api.Data.Seeding;
 using ChatApp.Api.Hubs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -44,5 +45,14 @@ app.UseCors("AllowClient");
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs");
+
+// auto-migrate
+using (var scope = app.Services.CreateScope())
+{
+  var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
+  db.Database.Migrate();
+  
+  await DbSeeder.SeedFromJsonAsync(db, "mockdata.json");
+}
 
 app.Run();
