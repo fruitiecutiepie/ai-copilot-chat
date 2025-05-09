@@ -1,5 +1,7 @@
 import { USER_ID } from "@/app/page";
 import { ChatMessage } from "@/types";
+import { useCallback } from "react";
+import Image from "next/image";
 
 type ChatWindowProps = {
   messages: ChatMessage[];
@@ -8,6 +10,28 @@ type ChatWindowProps = {
 export default function ChatWindow(
   { messages }: ChatWindowProps
 ) {
+  // helper to fetch a blob and either open or download it
+  const handleDownload = useCallback(async (url: string, viewInline = false) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      if (viewInline) {
+        window.open(blobUrl, "_blank");
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = url.split("/").pop() || "file";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("File download error:", err);
+    }
+  }, []);
+
   return (
     <div className="h-[35rem] overflow-y-auto border border-gray-300 p-4">
       {messages.map((msg, idx) => (
@@ -27,6 +51,56 @@ export default function ChatWindow(
             )}
             <div className="rounded px-3 py-1 max-w-xs break-words bg-blue-100 dark:bg-gray-500">
               {msg.content}
+
+              {/* attachments */}
+              {msg.attachmentUrls?.map((url, i) => {
+                if (url.endsWith(".pdf")) {
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleDownload(url, true)}
+                      className="block text-blue-600 underline mt-1"
+                    >
+                      View PDF
+                    </button>
+                  );
+                }
+                if (/\.(jpe?g|png|gif)$/i.test(url)) {
+                  return (
+                    <Image
+                      key={i}
+                      src={url}
+                      alt={`attach-${i}`}
+                      className="mt-2 max-w-full h-auto rounded"
+                      style={{ maxWidth: "100%", height: "auto" }}
+                      width={200}
+                      height={200}
+                    />
+                  );
+                }
+                if (url.endsWith(".txt")) {
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleDownload(url)}
+                      className="block text-blue-600 underline mt-1"
+                    >
+                      Download text file
+                    </button>
+                  );
+                }
+                // fallback
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleDownload(url)}
+                    className="block text-blue-600 underline mt-1"
+                  >
+                    Download file
+                  </button>
+                );
+              })}
+
               <div className="text-xs text-right">
                 {new Date(msg.timestamp).toLocaleTimeString()}
               </div>

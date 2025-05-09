@@ -13,6 +13,7 @@ export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const connRef = useRef<HubConnection>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -101,6 +102,20 @@ export default function Home() {
     if (!text && selectedFiles.length === 0) return;
 
     let attachmentUrls: string[] = [];
+    if (selectedFiles.length > 0) {
+      const form = new FormData();
+      selectedFiles.forEach((f) => form.append("files", f));
+      try {
+        const res = await fetch(`https://${SERVER_DOMAIN}/api/uploads`, {
+          method: "POST",
+          body: form,
+        });
+        const json = await res.json();
+        attachmentUrls = json.urls;
+      } catch (err) {
+        console.error("Upload failed", err);
+      }
+    }
 
     await connRef.current!.invoke("SendMessage",
       USER_ID,
@@ -109,6 +124,7 @@ export default function Home() {
       attachmentUrls.join(","),
     );
     inputRef.current.value = "";
+    setSelectedFiles([]);
   };
 
   return (
@@ -143,6 +159,16 @@ export default function Home() {
                 <div
                   className="flex flex-col space-y-2"
                 >
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,image/*,.txt"
+                    onChange={(e) =>
+                      setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])
+                    }
+                    className="border border-gray-300 rounded px-3 py-2 bg-gray-50 dark:bg-gray-900"
+                    style={{ fontSize: "0.8rem" }}
+                  />
                   <div
                     className="flex"
                   >
