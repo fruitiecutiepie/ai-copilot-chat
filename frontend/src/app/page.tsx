@@ -14,6 +14,7 @@ export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const connRef = useRef<HubConnection>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [showSpacer, setShowSpacer] = useState(false);
   useEffect(() => {
@@ -94,6 +95,22 @@ export default function Home() {
     });
   }, []);
 
+  const send = async () => {
+    if (!inputRef.current) return;
+    const text = inputRef.current.value.trim();
+    if (!text && selectedFiles.length === 0) return;
+
+    let attachmentUrls: string[] = [];
+
+    await connRef.current!.invoke("SendMessage",
+      USER_ID,
+      CONV_ID,
+      text,
+      attachmentUrls.join(","),
+    );
+    inputRef.current.value = "";
+  };
+
   return (
     <div
       className="flex flex-col w-full p-10 space-y-4"
@@ -123,6 +140,27 @@ export default function Home() {
                 <ChatWindow
                   messages={messages}
                 />
+                <div
+                  className="flex flex-col space-y-2"
+                >
+                  <div
+                    className="flex"
+                  >
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      className="flex-1 border border-gray-300 rounded-l px-3 py-2"
+                      placeholder="Type a message"
+                      onKeyDown={(e) => e.key === "Enter" && send()}
+                    />
+                    <button
+                      onClick={send}
+                      className="bg-blue-600 text-white px-4 rounded-r"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div
