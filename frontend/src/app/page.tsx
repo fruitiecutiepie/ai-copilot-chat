@@ -14,6 +14,8 @@ export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([]);
   const connRef = useRef<HubConnection>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -82,6 +84,9 @@ export default function Home() {
       conn.on("ReceiveMessage", (msg: ChatMessage) =>
         setMessages((prev) => [...prev, msg])
       );
+      conn.on("ReceiveAiMessage", (msg: ChatMessage) =>
+        setAiMessages((prev) => [...prev, msg])
+      );
     }
     init();
 
@@ -90,6 +95,7 @@ export default function Home() {
       connRef.current = null;
       // remove handlers and stop the connection
       conn.off("ReceiveMessage");
+      conn.off("ReceiveAiMessage");
       conn.stop().catch((err) => {
         console.error("Error stopping connection: ", err);
       });
@@ -147,6 +153,19 @@ export default function Home() {
             >
               Chat App
             </h1>
+            {connRef.current && (
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+                onClick={() => {
+                  setAiChatOpen(!aiChatOpen);
+                  if (inputRef.current) {
+                    inputRef.current.value = "";
+                  }
+                }}
+              >
+                {aiChatOpen ? "Close AI" : "Open AI"}
+              </button>
+            )}
           </div>
           <div
             className="flex flex-col h-full space-y-2"
@@ -208,6 +227,60 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
+        {aiChatOpen && (
+          <div
+            className="flex flex-col w-full border rounded p-4 border-gray-300"
+          >
+            <div
+              className="flex items-center justify-between pb-4 h-16"
+            >
+              <h1
+                className="text-xl font-bold"
+              >
+                AI Copilot
+              </h1>
+            </div>
+            <div
+              className="flex flex-col h-full space-y-2"
+            >
+              <ChatWindow
+                messages={aiMessages}
+              />
+            </div>
+            {connRef.current && (
+              <div
+                className="flex flex-col space-y-2"
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,image/*,.txt"
+                  onChange={(e) =>
+                    setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])
+                  }
+                  className="border border-gray-300 rounded px-3 py-2 bg-gray-50 dark:bg-gray-900"
+                  style={{ fontSize: "0.8rem" }}
+                />
+                <div
+                  className="flex"
+                >
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="flex-1 border border-gray-300 rounded-l px-3 py-2"
+                    placeholder="Type a message"
+                    onKeyDown={(e) => e.key === "Enter" && send()}
+                  />
+                  <button
+                    onClick={send}
+                    className="bg-blue-600 text-white px-4 rounded-r"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
