@@ -2,6 +2,10 @@
 import { useEffect, useState, useRef } from "react";
 import { HttpTransportType, HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 
+import ChatWindow from "@/components/ChatWindow";
+import { ChatMessage, ChatMessageSchema } from "@/types";
+import { res, resAsync } from "@/common/res";
+
 export const SERVER_DOMAIN = "localhost:5000";
 
 export const USER_ID = "A1b2C3d4E5f6G7h8I9j0K";
@@ -10,6 +14,17 @@ export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const connRef = useRef<HubConnection>(null);
+
+  const [showSpacer, setShowSpacer] = useState(false);
+  useEffect(() => {
+    function onResize() {
+      setShowSpacer(window.innerWidth >= 1024);
+    }
+    window.addEventListener("resize", onResize);
+    onResize();              // set initial
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   useEffect(() => {
     const connRes = res(() => new HubConnectionBuilder()
       .withUrl(`http://${SERVER_DOMAIN}/hubs`, {
@@ -81,9 +96,57 @@ export default function Home() {
 
   return (
     <div
-      className=""
+      className="flex flex-col w-full p-10 space-y-4"
     >
-      Hello world!
+      <div
+        className="p-4 grid grid-cols-2 lg:grid-cols-3 gap-4"
+        style={{ fontSize: "0.8rem" }}
+      >
+        {showSpacer && <div />}
+        <div
+          className="flex flex-col w-full border rounded p-4 border-gray-300"
+        >
+          <div
+            className="flex items-center justify-between pb-4 h-16"
+          >
+            <h1
+              className="text-xl font-bold"
+            >
+              Chat App
+            </h1>
+          </div>
+          <div
+            className="flex flex-col h-full space-y-2"
+          >
+            {connRef.current ? (
+              <div>
+                <ChatWindow
+                  messages={messages}
+                />
+              </div>
+            ) : (
+              <div
+                className="flex items-center justify-center h-full"
+                style={{ fontSize: "0.8rem" }}
+              >
+                <div
+                  className="text-xs text-gray-500"
+                >
+                  Connecting to chat...
+                </div>
+                <div
+                  className="w-2 h-2 rounded-full bg-green-500 ml-2"
+                  style={{
+                    animation: "pulse 1s infinite",
+                    opacity: 0.5,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
