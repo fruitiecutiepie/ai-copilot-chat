@@ -1,6 +1,8 @@
-﻿using ChatApp.Api.Data;
+﻿using System.Text.Json;
+using ChatApp.Api.Data;
 using ChatApp.Api.Hubs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,20 @@ var app = builder.Build();
 
 app.UseWebSockets();
 app.UseCors("AllowClient");
+
+{
+  var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+  if (!Directory.Exists(uploadsPath))
+  {
+    Directory.CreateDirectory(uploadsPath);
+  }
+
+  app.UseStaticFiles(new StaticFileOptions
+  {
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/api/uploads"
+  });
+}
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs");

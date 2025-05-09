@@ -21,4 +21,8 @@ public class ChatMessage
 
   [Required]
   public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+  [Required]
+  public List<ChatMessageAttachment> Attachments { get; set; }
+    = new List<ChatMessageAttachment>();
 }

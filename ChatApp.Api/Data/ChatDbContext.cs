@@ -7,6 +7,7 @@ public class ChatDbContext(
   DbContextOptions<ChatDbContext> opts
 ): DbContext(opts) {
   public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+  public DbSet<ChatMessageAttachment> ChatMessageAttachments => Set<ChatMessageAttachment>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -16,5 +17,9 @@ public class ChatDbContext(
       .HasMany(m => m.Attachments)
       .WithOne(a => a.Content)
       .HasForeignKey(a => a.MessageId);
+
+    modelBuilder.Entity<ChatMessageAttachment>()
+      .HasIndex(a => a.FilePath)
+      .IsUnique();
   }
 }
