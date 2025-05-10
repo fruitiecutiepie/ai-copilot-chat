@@ -1,14 +1,27 @@
 using System.Text.Json;
+using ChatApp.Api.Services.Chat;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChatApp.Api.Data.Seeding;
+namespace ChatApp.Api.Data.Seed;
 
 public static class DbSeeder
 {
+  private const string jsonPath = "Data/Seed/seed.json";
+
+  public class ChatMessageSeed
+  {
+    public required string Id { get; set; }
+    public required string UserId { get; set; }
+    public required string ConvId { get; set; }
+    public required string Content { get; set; }
+    public DateTime Timestamp { get; set; }
+    public required List<string> Attachments { get; set; }
+  }
+
   public static async Task SeedFromJsonAsync(
-    ChatDbContext db,
-    string jsonPath
-  ) {
+    ChatDbContext db
+  )
+  {
     var json = File.ReadAllText(jsonPath);
     var seeds = JsonSerializer.Deserialize<List<ChatMessageSeed>>(json,
       new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
@@ -28,7 +41,7 @@ public static class DbSeeder
       foreach (var fp in s.Attachments)
       {
         await db.Database.ExecuteSqlRawAsync(@"
-          INSERT INTO ChatMessageAttachments (Id, MessageId, FilePath)
+          INSERT INTO ChatDbs (Id, MessageId, FilePath)
           VALUES ({0}, {1}, {2})
           ON CONFLICT(FilePath) DO NOTHING",
           NanoidDotNet.Nanoid.Generate(), s.Id, fp

@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ChatApp.Api.Models;
+namespace ChatApp.Api.Services.Chat.Models;
 
 public class ChatMessageAttachment
 {
@@ -12,7 +12,7 @@ public class ChatMessageAttachment
   public string MessageId { get; set; } = default!;
 
   [ForeignKey(nameof(MessageId))]
-  public ChatMessage Content { get; set; } = default!;
+  public ChatMessage Message { get; set; } = default!;
 
   [Required]
   public string FilePath { get; set; } = default!;
