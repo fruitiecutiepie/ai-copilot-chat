@@ -1,12 +1,23 @@
 ﻿using System.Text.Json;
-using ChatApp.Api.Data;
-using ChatApp.Api.Data.Seeding;
-using ChatApp.Api.Hubs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
+using ChatApp.Api.Data.Seed;
+using ChatApp.Api.Services.Chat;
+using ChatApp.Api.Services.Chat.Ui.Ws;
+using ChatApp.Api.Services.FileStorage;
+
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddDbContext<ChatDbContext>(opt =>
+  opt.UseSqlite("Data Source=./Data/chat.db")
+);
+
+builder.Services.AddSignalR();
+
+builder.Services.AddControllers().AddJsonOptions(opt =>
+  opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+);
 builder.Services.AddCors(opt => opt.AddPolicy("AllowClient", p =>
 {
   p.WithOrigins("http://localhost:3000")
@@ -14,23 +25,25 @@ builder.Services.AddCors(opt => opt.AddPolicy("AllowClient", p =>
    .AllowAnyMethod()
    .AllowCredentials();
 }));
-builder.Services.AddDbContext<ChatDbContext>(opt =>
-  opt.UseSqlite("Data Source=./data/chat.db"));
 
-builder.Services.AddSignalR();
-builder.Services.AddControllers()
-  .AddJsonOptions(opt =>
-  {
-    opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-  });
+
+builder.Services
+  .AddScoped<IChatService, ChatService>()
+  .AddScoped<IFileStorage, FileStorage>();
 
 var app = builder.Build();
 
-app.UseWebSockets();
-app.UseCors("AllowClient");
+// auto-migrate
+using (var scope = app.Services.CreateScope())
+{
+  var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
+  db.Database.Migrate();
+
+  await DbSeeder.SeedFromJsonAsync(db);
+}
 
 {
-  var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+  var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "Data/uploads");
   if (!Directory.Exists(uploadsPath))
   {
     Directory.CreateDirectory(uploadsPath);
@@ -43,16 +56,10 @@ app.UseCors("AllowClient");
   });
 }
 
-app.MapControllers();
-app.MapHub<ChatHub>("/hubs");
+app.UseWebSockets();
+app.UseCors("AllowClient");
 
-// auto-migrate
-using (var scope = app.Services.CreateScope())
-{
-  var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
-  db.Database.Migrate();
-  
-  await DbSeeder.SeedFromJsonAsync(db, "mockdata.json");
-}
+app.MapControllers();
+app.MapHub<ChatWs>("/ws/chat");
 
 app.Run();
