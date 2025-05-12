@@ -5,9 +5,13 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.SemanticKernel;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using OpenAI.Chat;
+
 using ChatApp.Api.Services.Chat;
+using ChatApp.Api.Services.Llm;
 using ChatApp.Api.Ports;
 using ChatApp.Api.Services.Chat.Ui;
+using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
 using ChatApp.Api.Services.Db.Seed;
 
@@ -71,6 +75,7 @@ public class Program
 
     // Services
     builder.Services.AddScoped<IChatService, ChatService>();
+    builder.Services.AddScoped<ILlmService, LlmService>();
     // builder.Services.AddScoped<IFsService, FsService>();
 
     // HTTP Clients
@@ -135,6 +140,7 @@ public class Program
     app.UseCors("AllowClient");
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
+    app.MapHub<LlmHub>("/hubs/llm");
 
     app.Run();
   }

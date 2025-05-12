@@ -17,6 +17,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.4" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Sqlite" Version="1.49.0-preview" />
     <PackageReference Include="Nanoid" Version="3.1.0" />
+    <PackageReference Include="OpenAI" Version="2.1.0" />
+    <PackageReference Include="PdfPig" Version="0.1.10" />
+    <PackageReference Include="PDFtoImage" Version="5.1.0" />
+    <PackageReference Include="Tiktoken" Version="2.2.0" />
   </ItemGroup>
 
 </Project>
