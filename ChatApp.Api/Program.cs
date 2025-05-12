@@ -1,9 +1,11 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-
-using ChatApp.Api.Data.Seed;
+using Microsoft.SemanticKernel;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using ChatApp.Api.Services.Chat;
+using ChatApp.Api.Ports;
 using ChatApp.Api.Services.Chat.Ui;
 using ChatApp.Api.Services.Db;
 using ChatApp.Api.Services.Db.Seed;
@@ -22,6 +24,42 @@ public class Program
     builder.Services.AddDbContext<ChatDbContext>(opt =>
       opt.UseSqlite($"Data Source={dbPath};Cache=Shared")
     );
+    builder.Services.AddSingleton<SqliteConnection>(_ =>
+    {
+      var c = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
+      c.Open();
+      using (var cmd = c.CreateCommand())
+      {
+        cmd.CommandText = "PRAGMA journal_mode=WAL;";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = "PRAGMA synchronous=NORMAL;";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = @"
+          CREATE TABLE IF NOT EXISTS doc_chunks(
+            id TEXT PRIMARY KEY,
+            chunk TEXT
+          );
+        ";
+        cmd.ExecuteNonQuery();
+
+        cmd.CommandText = @"
+          CREATE VIRTUAL TABLE IF NOT EXISTS vec_document_chunks
+          USING vec0(
+            id PRIMARY KEY,
+            embedding FLOAT[1536] distance_metric=cosine
+          );
+        ";
+        cmd.ExecuteNonQuery();
+      }
+      // https://github.com/asg017/sqlite-vec
+      c.LoadExtension("vec0");
+      return c;
+    });
+    builder.Services.AddSqliteVectorStore($"Data Source={dbPath};Cache=Shared");
+
+    // builder.Services.AddMemoryCache();
 
     // Services
     builder.Services.AddScoped<IChatService, ChatService>();
