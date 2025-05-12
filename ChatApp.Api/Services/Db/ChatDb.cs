@@ -56,4 +56,56 @@ public class ChatDb : IChatDb
       .Distinct()
       .ToListAsync();
   }
+
+  public async Task<List<string>> GetDocChunksContentTopKAsync(float[] query, int k)
+  {
+    using var cmd = _vectorConn.CreateCommand();
+    cmd.CommandText = @"
+      SELECT c.chunk
+        FROM vec_document_chunks AS v
+        JOIN doc_chunks          AS c USING(id)
+      ORDER BY v.embedding <-> $q
+      LIMIT $k;
+    ";
+    cmd.Parameters.Add(new SqliteParameter("$q", SqliteType.Blob)
+    { Value = MemoryMarshal.AsBytes<float>(query).ToArray() });
+    cmd.Parameters.AddWithValue("$k", k);
+
+    var results = new List<string>();
+    await using var rdr = await cmd.ExecuteReaderAsync();
+    while (await rdr.ReadAsync())
+      results.Add(rdr.GetString(0));
+    return results;
+  }
+
+  public async Task SetDocChunksAsync(string id, string chunk, float[] embedding)
+  {
+    using var tx = _vectorConn.BeginTransaction();
+
+    var cmd1 = _vectorConn.CreateCommand();
+    cmd1.CommandText = @"
+      INSERT INTO doc_chunks(id, chunk)
+        VALUES($id, $chunk)
+      ON CONFLICT(id) DO UPDATE SET
+        chunk = excluded.chunk;
+    ";
+    cmd1.Parameters.AddWithValue("$id", id);
+    cmd1.Parameters.AddWithValue("$chunk", chunk);
+    await cmd1.ExecuteNonQueryAsync();
+
+    var cmd2 = _vectorConn.CreateCommand();
+    cmd2.CommandText = @"
+      INSERT INTO vec_document_chunks(id, embedding)
+        VALUES($id, $vec)
+      ON CONFLICT(id) DO UPDATE SET
+        embedding = excluded.embedding;
+    ";
+    cmd2.Parameters.AddWithValue("$id", id);
+    cmd2.Parameters.Add(new SqliteParameter("$vec", SqliteType.Blob) {
+      Value = MemoryMarshal.AsBytes<float>(embedding).ToArray()
+    });
+    await cmd2.ExecuteNonQueryAsync();
+
+    await tx.CommitAsync();
+  }
 }
