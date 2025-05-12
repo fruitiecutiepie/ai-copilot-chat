@@ -39,7 +39,7 @@ public class Program
     builder.Services.AddDbContext<DbServiceContext>(opt =>
       opt.UseSqlite($"Data Source={dbPath};Cache=Shared")
     );
-    builder.Services.AddScoped<DbServiceContext>();
+    builder.Services.AddScoped<IDbServiceContext, DbServiceContext>();
     builder.Services.AddSingleton<SqliteConnection>(_ =>
     {
       var c = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
@@ -78,6 +78,7 @@ public class Program
     // builder.Services.AddMemoryCache();
 
     // Services
+    builder.Services.AddScoped<IDbService, DbService>();
     builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<ILlmService, LlmService>();
     // builder.Services.AddScoped<IFsService, FsService>();
