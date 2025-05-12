@@ -23,7 +23,7 @@ public enum EmbeddingInputType
 
 public class LlmService : ILlmService
 {
-  readonly IChatDb _db;
+  readonly IDbService _db;
 
   private readonly ChatClient _clientOpenAi;
   private readonly HttpClient _httpCohere;
@@ -32,7 +32,7 @@ public class LlmService : ILlmService
   // private readonly ConcurrentDictionary<string, Task<string>> _atchSummaryCache = new();
 
   public LlmService(
-    IChatDb db,
+    IDbService db,
 
     ChatClient chatClientOpenAi,
     IHttpClientFactory httpFactory

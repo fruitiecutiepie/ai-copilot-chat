@@ -6,7 +6,7 @@ namespace ChatApp.Api.Services.Db.Seed;
 
 public static class DbSeeder
 {
-  private const string jsonPath = "Data/Seed/seed.json";
+  private const string jsonPath = "Services/Db/Seed/seed.json";
 
   public class ChatMessageSeed
   {
@@ -19,7 +19,7 @@ public static class DbSeeder
   }
 
   public static async Task SeedFromJsonAsync(
-    ChatDbContext db
+    DbServiceContext db
   )
   {
     var json = File.ReadAllText(jsonPath);

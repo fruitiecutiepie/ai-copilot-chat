@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace ChatApp.Api.Services.Db;
 
-public class ChatDbContext(
-  DbContextOptions<ChatDbContext> opts
+public class DbServiceContext(
+  DbContextOptions<DbServiceContext> opts
 ): DbContext(opts) {
   public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
   public DbSet<ChatMessageAttachment> ChatMessageAttachments => Set<ChatMessageAttachment>();
@@ -25,17 +25,17 @@ public class ChatDbContext(
   }
 }
 
-public class ChatDbContextFactory : IDesignTimeDbContextFactory<ChatDbContext>
+public class DbServiceContextFactory : IDesignTimeDbContextFactory<DbServiceContext>
 {
-  public ChatDbContext CreateDbContext(string[] args)
+  public DbServiceContext CreateDbContext(string[] args)
   {
     var baseDir = AppContext.BaseDirectory;
     var dbPath = Path.Combine(baseDir, "UserData", "chat.db");
 
-    var options = new DbContextOptionsBuilder<ChatDbContext>()
+    var options = new DbContextOptionsBuilder<DbServiceContext>()
       .UseSqlite($"Data Source={dbPath};Cache=Shared")
       .Options;
 
-    return new ChatDbContext(options);
+    return new DbServiceContext(options);
   }
 }

@@ -6,12 +6,12 @@ namespace ChatApp.Api.Services.Chat;
 
 public class ChatService : IChatService
 {
-  readonly IChatDb _db;
+  readonly IDbService _db;
   // readonly IFsService _store;
   private readonly ILlmService _llm;
 
   public ChatService(
-    IChatDb db,
+    IDbService db,
     // IFsService store,
     ILlmService llm
   ) {

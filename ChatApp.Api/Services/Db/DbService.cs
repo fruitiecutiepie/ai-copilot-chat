@@ -6,13 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Api.Services.Db;
 
-public class ChatDb : IChatDb
+public class DbService : IDbService
 {
-  private readonly ChatDbContext _db;
+  private readonly DbServiceContext _db;
   private readonly SqliteConnection _vectorConn;
 
-  public ChatDb(
-    ChatDbContext db,
+  public DbService(
+    DbServiceContext db,
     SqliteConnection vectorConn
   )
   {

@@ -2,7 +2,7 @@ using ChatApp.Api.Models;
 
 namespace ChatApp.Api.Ports;
 
-public interface IChatDb
+public interface IDbService
 {
   Task SetDbChatMessageAsync(ChatMessage msg);
   Task SetDbChatMessageAttachmentAsync(string messageId, string filePath);

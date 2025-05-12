@@ -22,7 +22,11 @@ public class Program
   public static async Task Main(string[] args)
   {
     var baseDir = AppContext.BaseDirectory;
-    var dbPath  = Path.Combine(baseDir, "UserData", "chat.db");
+    var userData = Path.Combine(baseDir, "UserData");
+    var dbPath = Path.Combine(userData, "chat.db");
+
+    if (!Directory.Exists(userData))
+      Directory.CreateDirectory(userData);
 
     var builder = WebApplication.CreateBuilder(args);
 
@@ -32,10 +36,10 @@ public class Program
     );
 
     // Infrastructure
-    builder.Services.AddDbContext<ChatDbContext>(opt =>
+    builder.Services.AddDbContext<DbServiceContext>(opt =>
       opt.UseSqlite($"Data Source={dbPath};Cache=Shared")
     );
-    builder.Services.AddScoped<ChatDbContext>();
+    builder.Services.AddScoped<DbServiceContext>();
     builder.Services.AddSingleton<SqliteConnection>(_ =>
     {
       var c = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
@@ -116,7 +120,7 @@ public class Program
     // Auto-migrate
     using (var scope = app.Services.CreateScope())
     {
-      var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
+      var db = scope.ServiceProvider.GetRequiredService<DbServiceContext>();
       db.Database.Migrate();
 
       await DbSeeder.SeedFromJsonAsync(db);

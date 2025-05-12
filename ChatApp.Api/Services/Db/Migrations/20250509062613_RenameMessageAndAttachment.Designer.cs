@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ChatApp.Api.Migrations
 {
-    [DbContext(typeof(ChatDbContext))]
+    [DbContext(typeof(DbServiceContext))]
     [Migration("20250509062613_RenameMessageAndAttachment")]
     partial class RenameMessageAndAttachment
     {
