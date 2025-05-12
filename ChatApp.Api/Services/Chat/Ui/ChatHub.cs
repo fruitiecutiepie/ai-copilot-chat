@@ -1,24 +1,24 @@
 using Microsoft.AspNetCore.SignalR;
 
-namespace ChatApp.Api.Services.Chat.Ui.Ws;
+namespace ChatApp.Api.Services.Chat.Ui;
 
-public class ChatWs : Hub
+public class ChatHub : Hub
 {
   readonly IChatService _chat;
 
-  public ChatWs(IChatService chat) => _chat = chat;
+  public ChatHub(IChatService chat) => _chat = chat;
 
   public override async Task OnConnectedAsync()
   {
     var http = Context.GetHttpContext()!;
     var convId = http.Request.Query["convId"];
-    if (!string.IsNullOrEmpty(convId))
+    if (string.IsNullOrEmpty(convId))
     {
       throw new ArgumentException(
         "Missing conversation ID in query string");
     }
     // SignalR automatically removes connection from groups
-    await Groups.AddToGroupAsync(Context.ConnectionId, convId);
+    await Groups.AddToGroupAsync(Context.ConnectionId, convId!);
     await base.OnConnectedAsync();
   }
 
@@ -27,14 +27,14 @@ public class ChatWs : Hub
     await base.OnDisconnectedAsync(exception);
   }
 
-  public async Task SendMessage(
-    string convId,
+  public async Task ChatSendMessage(
     string userId,
+    string convId,
     string content,
-    IEnumerable<IFormFile> attachments
+    string[] attachmentUrls
   )
   {
-    var msg = await _chat.SetChatMessageAsync(convId, userId, content, attachments);
-    await Clients.Group(convId).SendAsync("RecvMessage", msg);
+    var msg = await _chat.SetChatMessageAsync(convId, userId, content, attachmentUrls);
+    await Clients.Group(convId).SendAsync("ChatRecvMessage", msg);
   }
 }

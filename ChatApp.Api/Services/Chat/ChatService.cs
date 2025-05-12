@@ -1,26 +1,25 @@
-using ChatApp.Api.Services.Chat.Db;
-using ChatApp.Api.Services.Chat.Models;
-using ChatApp.Api.Services.FileStorage;
+using ChatApp.Api.Models;
+using ChatApp.Api.Ports;
+// using ChatApp.Api.Services.FsService;
 
 namespace ChatApp.Api.Services.Chat;
 
 public class ChatService : IChatService
 {
   readonly IChatDb _db;
-  readonly IFileStorage _store;
+  // readonly IFsService _store;
 
-  public ChatService(IChatDb db, IFileStorage store)
-    => (_db, _store) = (db, store);
+  public Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsyncAsync(string convId, int limit = 100)
+    => _db.GetDbChatMessagesAsync(convId, limit);
 
   public async Task<ChatMessage> SetChatMessageAsync(
-    string convId, string userId, string content, IEnumerable<IFormFile> files)
+    string convId, string userId, string content, string[] filePaths
+  )
   {
-    // save attachments
-    var paths = new List<string>();
-    foreach (var f in files)
-      paths.Add(await _store.SetChatMessageAttachment(convId, f.OpenReadStream(), f.FileName));
+    // var paths = new List<string>();
+    // foreach (var f in files)
+    //   paths.Add(await _store.SetChatMessageAttachment(convId, f.OpenReadStream(), f.FileName));
 
-    // create & persist message
     var msg = new ChatMessage
     {
       Id = NanoidDotNet.Nanoid.Generate(),
@@ -29,15 +28,11 @@ public class ChatService : IChatService
       Content = content,
       Timestamp = DateTime.UtcNow
     };
-    await _db.SetChatMessage(msg);
+    await _db.SetDbChatMessageAsync(msg);
 
-    // persist attachments records
-    foreach (var p in paths)
-      await _db.SetChatMessageAttachment(msg.Id, p);
+    foreach (var path in filePaths)
+      await _db.SetDbChatMessageAttachmentAsync(msg.Id, path);
 
     return msg;
   }
-
-  public Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsync(string convId, int limit = 100)
-    => _db.GetChatMessages(convId, limit);
 }
