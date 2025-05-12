@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { HttpTransportType, HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 
 import ChatWindow from "@/components/ChatWindow";
-import { ChatMessage, ChatMessageSchema } from "@/types";
+import { ChatMessage } from "@/types";
 import { res, resAsync } from "@/common/res";
 
 export const SERVER_DOMAIN = "localhost:5000";
@@ -13,11 +13,17 @@ export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [aiChatOpen, setAiChatOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([]);
-  const connRef = useRef<HubConnection>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [messagesLlm, setMessagesLlm] = useState<ChatMessage[]>([]);
+
+  const [chatLlmOpen, setChatLlmOpen] = useState(false);
+
+  const [selectedFilesChat, setSelectedFilesChat] = useState<File[]>([]);
+
+  const inputRefChat = useRef<HTMLInputElement>(null);
+  const inputRefLlm = useRef<HTMLInputElement>(null);
+
+  const connRefChat = useRef<HubConnection>(null);
+  const connRefLlm = useRef<HubConnection>(null);
 
   const [showSpacer, setShowSpacer] = useState(false);
   useEffect(() => {
@@ -31,10 +37,11 @@ export default function Home() {
 
   useEffect(() => {
     const connRes = res(() => new HubConnectionBuilder()
-      .withUrl(`http://${SERVER_DOMAIN}/hubs`, {
+      .withUrl(`http://${SERVER_DOMAIN}/hubs/chat`, {
         transport: HttpTransportType.WebSockets,
         skipNegotiation: true
       })
+      .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build()
     );
@@ -54,65 +61,37 @@ export default function Home() {
       }
       if (didCancel) return;
 
-      connRef.current = conn;
-      console.log("Connected to SignalR conn");
+      connRefChat.current = conn;
+      console.log("Connected to SignalR conn Chat");
 
-      const joinRes = await resAsync(() =>
-        conn.invoke("JoinConversation", CONV_ID)
-      );
-      if (!joinRes.is_ok) {
-        console.error("Join conversation error: ", joinRes.err);
-        return;
-      }
-      console.log("Joined conversation: ", CONV_ID);
-      const historyRes = await resAsync(() =>
-        conn.invoke("GetHistory", CONV_ID, 1, 50)
-      );
-      if (!historyRes.is_ok) {
-        console.error("Get history error: ", historyRes.err);
-        return;
-      }
-      const historyParseRes = ChatMessageSchema.array().safeParse(historyRes.ok);
-      if (!historyParseRes.success) {
-        console.error("Invalid history format: ", historyParseRes.error);
-        return;
-      }
-      const history = historyParseRes.data;
-      setMessages(history);
-      console.log("History: ", JSON.stringify(history, null, 2));
-
-      conn.on("ReceiveMessage", (msg: ChatMessage) =>
+      conn.on("ChatRecvMessage", (msg: ChatMessage) =>
         setMessages((prev) => [...prev, msg])
-      );
-      conn.on("ReceiveAiMessage", (msg: ChatMessage) =>
-        setAiMessages((prev) => [...prev, msg])
       );
     }
     init();
 
     return (() => {
       didCancel = true;
-      connRef.current = null;
+      connRefChat.current = null;
       // remove handlers and stop the connection
-      conn.off("ReceiveMessage");
-      conn.off("ReceiveAiMessage");
+      conn.off("ChatRecvMessage");
       conn.stop().catch((err) => {
         console.error("Error stopping connection: ", err);
       });
     });
   }, []);
 
-  const send = async () => {
-    if (!inputRef.current) return;
-    const text = inputRef.current.value.trim();
-    if (!text && selectedFiles.length === 0) return;
+  const sendChat = async () => {
+    if (!inputRefChat.current) return;
+    const text = inputRefChat.current.value.trim();
+    if (!text && selectedFilesChat.length === 0) return;
 
     let attachmentUrls: string[] = [];
-    if (selectedFiles.length > 0) {
+    if (selectedFilesChat.length > 0) {
       const form = new FormData();
-      selectedFiles.forEach((f) => form.append("files", f));
+      selectedFilesChat.forEach((f) => form.append("files", f));
       try {
-        const res = await fetch(`https://${SERVER_DOMAIN}/api/uploads`, {
+        const res = await fetch(`https://${SERVER_DOMAIN}/api/chat/upload`, {
           method: "POST",
           body: form,
         });
@@ -123,20 +102,97 @@ export default function Home() {
       }
     }
 
-    await connRef.current!.invoke("SendMessage",
+    await connRefChat.current!.invoke("ChatSendMessage",
       USER_ID,
       CONV_ID,
       text,
-      attachmentUrls.join(","),
+      attachmentUrls
     );
-    inputRef.current.value = "";
-    setSelectedFiles([]);
+    inputRefChat.current.value = "";
+    setSelectedFilesChat([]);
+  };
+
+  useEffect(() => {
+    const connRes = res(() => new HubConnectionBuilder()
+      .withUrl(`http://${SERVER_DOMAIN}/hubs/llm`, {
+        transport: HttpTransportType.WebSockets,
+        skipNegotiation: true
+      })
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Information)
+      .build()
+    );
+    if (!connRes.is_ok) {
+      console.error("connRes error: ", connRes.err);
+      return;
+    }
+    const conn = connRes.ok;
+
+    let didCancel = false;
+
+    const init = async () => {
+      const connRes = await resAsync(() => conn.start());
+      if (!connRes.is_ok) {
+        console.error("Connection error: ", connRes.err);
+        return;
+      }
+      if (didCancel) return;
+
+      connRefLlm.current = conn;
+      console.log("Connected to SignalR conn LLM");
+
+      conn.on("LlmRecvMessage", (msg: ChatMessage) =>
+        setMessagesLlm((prev) => [...prev, msg])
+      );
+    }
+    init();
+
+    return (() => {
+      didCancel = true;
+      connRefLlm.current = null;
+      // remove handlers and stop the connection
+      conn.off("LlmRecvMessage");
+      conn.stop().catch((err) => {
+        console.error("Error stopping connection: ", err);
+      });
+    });
+  }, []);
+
+  const sendChatLlm = async () => {
+    if (!inputRefLlm.current) return;
+    const text = inputRefLlm.current.value.trim();
+    if (!text) return;
+
+    await connRefChat.current!.invoke("LlmSendMessage",
+      USER_ID,
+      CONV_ID,
+      text
+    );
+    inputRefLlm.current.value = "";
+    setSelectedFilesChat([]);
   };
 
   return (
     <div
       className="flex flex-col w-full p-10 space-y-4"
     >
+      {/* <div
+        className="flex items-center justify-center mb-4"
+        style={{ fontSize: "0.8rem" }}
+      >
+        <div
+          className="text-xs text-gray-500"
+        >
+          {connRefChat.current ? "Connected" : "Connecting..."}
+        </div>
+        <div
+          className="w-2 h-2 rounded-full bg-green-500 ml-2"
+          style={{
+            animation: connRefChat.current ? "none" : "pulse 1s infinite",
+            opacity: connRefChat.current ? 1 : 0.5,
+          }}
+        />
+      </div> */}
       <div
         className="p-4 grid grid-cols-2 lg:grid-cols-3 gap-4"
         style={{ fontSize: "0.8rem" }}
@@ -153,24 +209,24 @@ export default function Home() {
             >
               Chat App
             </h1>
-            {connRef.current && (
+            {connRefChat.current && (
               <button
                 className="bg-blue-600 text-white px-4 py-2 rounded"
                 onClick={() => {
-                  setAiChatOpen(!aiChatOpen);
-                  if (inputRef.current) {
-                    inputRef.current.value = "";
+                  setChatLlmOpen(!chatLlmOpen);
+                  if (inputRefChat.current) {
+                    inputRefChat.current.value = "";
                   }
                 }}
               >
-                {aiChatOpen ? "Close AI" : "Open AI"}
+                {chatLlmOpen ? "Close AI" : "Open AI"}
               </button>
             )}
           </div>
           <div
             className="flex flex-col h-full space-y-2"
           >
-            {connRef.current ? (
+            {connRefChat.current ? (
               <div>
                 <ChatWindow
                   messages={messages}
@@ -183,7 +239,7 @@ export default function Home() {
                     multiple
                     accept=".pdf,image/*,.txt"
                     onChange={(e) =>
-                      setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])
+                      setSelectedFilesChat(e.target.files ? Array.from(e.target.files) : [])
                     }
                     className="border border-gray-300 rounded px-3 py-2 bg-gray-50 dark:bg-gray-900"
                     style={{ fontSize: "0.8rem" }}
@@ -192,14 +248,14 @@ export default function Home() {
                     className="flex"
                   >
                     <input
-                      ref={inputRef}
+                      ref={inputRefChat}
                       type="text"
                       className="flex-1 border border-gray-300 rounded-l px-3 py-2"
                       placeholder="Type a message"
-                      onKeyDown={(e) => e.key === "Enter" && send()}
+                      onKeyDown={(e) => e.key === "Enter" && sendChat()}
                     />
                     <button
-                      onClick={send}
+                      onClick={sendChat}
                       className="bg-blue-600 text-white px-4 rounded-r"
                     >
                       Send
@@ -228,7 +284,7 @@ export default function Home() {
             )}
           </div>
         </div>
-        {aiChatOpen && (
+        {chatLlmOpen && (
           <div
             className="flex flex-col w-full border rounded p-4 border-gray-300"
           >
@@ -245,35 +301,25 @@ export default function Home() {
               className="flex flex-col h-full space-y-2"
             >
               <ChatWindow
-                messages={aiMessages}
+                messages={messagesLlm}
               />
             </div>
-            {connRef.current && (
+            {connRefChat.current && (
               <div
                 className="flex flex-col space-y-2"
               >
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,image/*,.txt"
-                  onChange={(e) =>
-                    setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])
-                  }
-                  className="border border-gray-300 rounded px-3 py-2 bg-gray-50 dark:bg-gray-900"
-                  style={{ fontSize: "0.8rem" }}
-                />
                 <div
                   className="flex"
                 >
                   <input
-                    ref={inputRef}
+                    ref={inputRefLlm}
                     type="text"
                     className="flex-1 border border-gray-300 rounded-l px-3 py-2"
                     placeholder="Type a message"
-                    onKeyDown={(e) => e.key === "Enter" && send()}
+                    onKeyDown={(e) => e.key === "Enter" && sendChatLlm()}
                   />
                   <button
-                    onClick={send}
+                    onClick={sendChatLlm}
                     className="bg-blue-600 text-white px-4 rounded-r"
                   >
                     Send
