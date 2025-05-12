@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ChatApp.Api.Services.Chat.Models;
+namespace ChatApp.Api.Models;
 
 public class ChatMessage
 {
