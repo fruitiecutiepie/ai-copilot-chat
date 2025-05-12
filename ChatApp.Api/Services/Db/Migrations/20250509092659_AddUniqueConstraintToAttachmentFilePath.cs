@@ -11,8 +11,8 @@ namespace ChatApp.Api.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateIndex(
-                name: "IX_ChatDbs_FilePath",
-                table: "ChatDbs",
+                name: "IX_ChatMessageAttachments_FilePath",
+                table: "ChatMessageAttachments",
                 column: "FilePath",
                 unique: true);
         }
@@ -21,8 +21,8 @@ namespace ChatApp.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_ChatDbs_FilePath",
-                table: "ChatDbs");
+                name: "IX_ChatMessageAttachments_FilePath",
+                table: "ChatMessageAttachments");
         }
     }
 }

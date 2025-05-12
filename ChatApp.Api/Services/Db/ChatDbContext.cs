@@ -1,13 +1,13 @@
-using ChatApp.Api.Services.Chat.Models;
+using ChatApp.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChatApp.Api.Services.Chat;
+namespace ChatApp.Api.Services.Db;
 
 public class ChatDbContext(
   DbContextOptions<ChatDbContext> opts
 ): DbContext(opts) {
   public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-  public DbSet<ChatMessageAttachment> ChatDbs => Set<ChatMessageAttachment>();
+  public DbSet<ChatMessageAttachment> ChatMessageAttachments => Set<ChatMessageAttachment>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

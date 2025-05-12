@@ -28,12 +28,12 @@ namespace ChatApp.Api.Migrations
 
             migrationBuilder.RenameTable(
                 name: "MessageAttachments",
-                newName: "ChatDbs");
+                newName: "ChatMessageAttachments");
 
             migrationBuilder.RenameIndex(
                 name: "IX_MessageAttachments_MessageId",
-                table: "ChatDbs",
-                newName: "IX_ChatDbs_MessageId");
+                table: "ChatMessageAttachments",
+                newName: "IX_ChatMessageAttachments_MessageId");
 
             migrationBuilder.AddPrimaryKey(
                 name: "PK_ChatMessages",
@@ -41,13 +41,13 @@ namespace ChatApp.Api.Migrations
                 column: "Id");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_ChatDbs",
-                table: "ChatDbs",
+                name: "PK_ChatMessageAttachments",
+                table: "ChatMessageAttachments",
                 column: "Id");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_ChatDbs_ChatMessages_MessageId",
-                table: "ChatDbs",
+                name: "FK_ChatMessageAttachments_ChatMessages_MessageId",
+                table: "ChatMessageAttachments",
                 column: "MessageId",
                 principalTable: "ChatMessages",
                 principalColumn: "Id",
@@ -58,27 +58,27 @@ namespace ChatApp.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_ChatDbs_ChatMessages_MessageId",
-                table: "ChatDbs");
+                name: "FK_ChatMessageAttachments_ChatMessages_MessageId",
+                table: "ChatMessageAttachments");
 
             migrationBuilder.DropPrimaryKey(
                 name: "PK_ChatMessages",
                 table: "ChatMessages");
 
             migrationBuilder.DropPrimaryKey(
-                name: "PK_ChatDbs",
-                table: "ChatDbs");
+                name: "PK_ChatMessageAttachments",
+                table: "ChatMessageAttachments");
 
             migrationBuilder.RenameTable(
                 name: "ChatMessages",
                 newName: "Messages");
 
             migrationBuilder.RenameTable(
-                name: "ChatDbs",
+                name: "ChatMessageAttachments",
                 newName: "MessageAttachments");
 
             migrationBuilder.RenameIndex(
-                name: "IX_ChatDbs_MessageId",
+                name: "IX_ChatMessageAttachments_MessageId",
                 table: "MessageAttachments",
                 newName: "IX_MessageAttachments_MessageId");
 

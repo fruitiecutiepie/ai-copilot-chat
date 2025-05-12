@@ -1,8 +1,8 @@
 using System.Text.Json;
-using ChatApp.Api.Services.Chat;
+using ChatApp.Api.Services.Db;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChatApp.Api.Data.Seed;
+namespace ChatApp.Api.Services.Db.Seed;
 
 public static class DbSeeder
 {
@@ -40,11 +40,14 @@ public static class DbSeeder
 
       foreach (var fp in s.Attachments)
       {
+        // Example: "../uploads/specs_comparison.pdf"
+        string fileName = Path.GetFileName(fp);
+        string fileType = Path.GetExtension(fp);
         await db.Database.ExecuteSqlRawAsync(@"
-          INSERT INTO ChatDbs (Id, MessageId, FilePath)
-          VALUES ({0}, {1}, {2})
+          INSERT INTO ChatMessageAttachments (Id, MessageId, FileName, FilePath, FileType)
+          VALUES ({0}, {1}, {2}, {3}, {4})
           ON CONFLICT(FilePath) DO NOTHING",
-          NanoidDotNet.Nanoid.Generate(), s.Id, fp
+          NanoidDotNet.Nanoid.Generate(), s.Id, fileName, fp, fileType
         );
       }
     }
