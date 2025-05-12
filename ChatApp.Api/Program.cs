@@ -31,6 +31,7 @@ public class Program
     builder.Services.AddDbContext<ChatDbContext>(opt =>
       opt.UseSqlite($"Data Source={dbPath};Cache=Shared")
     );
+    builder.Services.AddScoped<ChatDbContext>();
     builder.Services.AddSingleton<SqliteConnection>(_ =>
     {
       var c = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
