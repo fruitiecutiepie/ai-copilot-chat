@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.SemanticKernel;
@@ -20,6 +21,12 @@ public class Program
     var dbPath  = Path.Combine(baseDir, "UserData", "chat.db");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // Config
+    builder.Services.Configure<OpenAISettings>(
+      builder.Configuration.GetSection("OpenAI")
+    );
+
     // Infrastructure
     builder.Services.AddDbContext<ChatDbContext>(opt =>
       opt.UseSqlite($"Data Source={dbPath};Cache=Shared")
@@ -63,6 +70,22 @@ public class Program
 
     // Services
     builder.Services.AddScoped<IChatService, ChatService>();
+    // builder.Services.AddScoped<IFsService, FsService>();
+
+    // HTTP Clients
+    builder.Services.AddSingleton(sp => {
+      var opts = sp.GetRequiredService<IOptions<OpenAISettings>>().Value;
+      return new ChatClient(
+        model: opts.Model, // "gpt-4.1-mini-2025-04-14" (https://platform.openai.com/docs/models/gpt-4.1-mini)
+        apiKey: opts.ApiKey
+      );
+    });
+    builder.Services.AddHttpClient("Cohere", (sp, client) =>
+    {
+      var config = sp.GetRequiredService<IOptions<AppSettings>>().Value;
+      client.DefaultRequestHeaders.Authorization =
+      new AuthenticationHeaderValue("Bearer", config.Cohere.ApiKey);
+    });
 
     // CORS
     builder.Services.AddCors(opt => 
