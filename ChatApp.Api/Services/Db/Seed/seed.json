@@ -22,7 +22,7 @@
     "Content": "Mostly for taking photos, I prefer the convenient form factor. It has to have a lot of battery capacity too. I attached the comparison chart for specs.",
     "Timestamp": "2025-05-09T11:33:00+10:00",
     "Attachments": [
-      "../uploads/specs_comparison.pdf"
+      "specs_comparison.pdf"
     ]
   },
   {
@@ -37,13 +37,11 @@
     "Id": "M5e6F7g8H9i0J1k2L3m4N",
     "ConvId": "XyZ123abcDEF456ghiJKL",
     "UserId": "A1b2C3d4E5f6G7h8I9j0K",
-    "Content": "Here are the sample photos.",
+    "Content": "Here are the sample photos comparing the three.",
     "Timestamp": "2025-05-09T11:36:00+10:00",
     "Attachments": [
-      "../uploads/sample_photo_1.jpg",
-      "../uploads/sample_photo_2.jpg",
-      "../uploads/sample_photo_3.jpg",
-      "../uploads/sample_photo_4.jpg"
+      "sample_photo_1.jpg",
+      "sample_photo_2.jpg"
     ]
   },
   {
@@ -55,7 +53,7 @@
     "Attachments": []
   },
   {
-    "Id": "M8h9I0j1K2l3M4n5O6p7Q",
+    "Id": "M8h9I0h3V2l3M4a5O6p7Q",
     "ConvId": "XyZ123abcDEF456ghiJKL",
     "UserId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Do you plan to take a lot of videos on your phone?",
