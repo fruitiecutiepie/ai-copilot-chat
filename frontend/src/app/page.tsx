@@ -61,7 +61,7 @@ export default function Home() {
 
   useEffect(() => {
     const connRes = res(() => new HubConnectionBuilder()
-      .withUrl(`http://${SERVER_DOMAIN}/hubs/chat`, {
+      .withUrl(`http://${SERVER_DOMAIN}/hubs/chat?convId=${CONV_ID}`, {
         transport: HttpTransportType.WebSockets,
         skipNegotiation: true
       })
@@ -75,27 +75,27 @@ export default function Home() {
     }
     const conn = connRes.ok;
 
-    let didCancel = false;
-
-    const init = async () => {
+    let mounted = true;
+    (async () => {
       const connRes = await resAsync(() => conn.start());
       if (!connRes.is_ok) {
         console.error("Connection error: ", connRes.err);
         return;
       }
-      if (didCancel) return;
+      if (!mounted) return;
 
       connRefChat.current = conn;
       console.log("Connected to SignalR conn Chat");
 
-      conn.on("ChatRecvMessage", (msg: ChatMessage) =>
-        setMessages((prev) => [...prev, msg])
-      );
-    }
-    init();
+      conn.on("ChatRecvMessage", (msg: ChatMessage) => {
+        console.log("ChatRecvMessage", JSON.stringify(msg, null, 2));
+        if (!mounted) return;
+        setMessages((prev) => [...prev, msg]);
+      });
+    })();
 
     return (() => {
-      didCancel = true;
+      mounted = false;
       connRefChat.current = null;
       // remove handlers and stop the connection
       conn.off("ChatRecvMessage");
