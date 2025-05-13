@@ -102,7 +102,7 @@ public class DbService : IDbService
 
       var lastIdCmd = _vectorConn.CreateCommand();
       lastIdCmd.CommandText = "SELECT last_insert_rowid();";
-      var docId = (long)await lastIdCmd.ExecuteScalarAsync();
+      var docId = await lastIdCmd.ExecuteScalarAsync();
 
       var cmd2 = _vectorConn.CreateCommand();
       cmd2.CommandText = @"

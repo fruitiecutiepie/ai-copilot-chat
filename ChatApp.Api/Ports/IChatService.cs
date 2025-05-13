@@ -1,17 +1,13 @@
 using ChatApp.Api.Models;
 
-namespace ChatApp.Api.Services.Chat;
+namespace ChatApp.Api.Ports;
 
 public interface IChatService
 {
   Task<ChatMessage> SetChatMessageAsync(
-    string convId,
-    string userId,
-    string content,
-    string[] attachmentsUrls
+    ChatMessage message
   );
-  Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsyncAsync(
-    string convId,
-    int limit = 100
+  Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsync(
+    string convId
   );
 }

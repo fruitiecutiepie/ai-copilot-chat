@@ -1,70 +1,67 @@
 using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
-// using ChatApp.Api.Services.FsService;
+using ChatApp.Api.Services.Chat.Ui;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ChatApp.Api.Services.Chat;
 
 public class ChatService : IChatService
 {
-  readonly IDbService _db;
-  // readonly IFsService _store;
+  // private readonly IHubContext<ChatHub> _hub;
+  private readonly IDbService _db;
   private readonly ILlmService _llm;
 
   public ChatService(
+    // IHubContext<ChatHub> hub,
     IDbService db,
-    // IFsService store,
     ILlmService llm
   ) {
+    // _hub = hub;
     _db = db;
-    // _store = store;
     _llm = llm;
   }
 
-  public Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsyncAsync(string convId, int limit = 100)
-    => _db.GetDbChatMessagesAsync(convId, limit);
+  public Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsync(
+    string convId
+  ) => _db.GetDbChatMessagesAsync(convId);
 
   public async Task<ChatMessage> SetChatMessageAsync(
-    string convId, string userId, string content, string[] filePaths
-  )
-  {
-    // var paths = new List<string>();
-    // foreach (var f in files)
-    //   paths.Add(await _store.SetChatMessageAttachment(convId, f.OpenReadStream(), f.FileName));
+    ChatMessage msg
+  ) {
+    await _db.SetDbChatMessagesAsync(new[] { msg });
+    // await _hub.Clients.Group(msg.ConvId).SendAsync("ChatRecvMessage", msg);
 
-    var msg = new ChatMessage
-    {
-      Id = NanoidDotNet.Nanoid.Generate(),
-      ConvId = convId,
-      UserId = userId,
-      Content = content,
-      Timestamp = DateTime.UtcNow
-    };
-    await _db.SetDbChatMessageAsync(msg);
+    var textEmbeddings = await _llm.GetEmbeddingAsync(
+      Llm.EmbeddingInputType.Text,
+      msg.Content
+    );
+    foreach (var r in textEmbeddings)
+      await _db.SetDocChunksAsync(
+        msg.UserId,
+        msg.ConvId,
+        r.Chunk,
+        r.Embedding
+      );
 
-    foreach (var path in filePaths)
-      await _db.SetDbChatMessageAttachmentAsync(msg.Id, path);
+    // embed & store chunks for each attachment
+    foreach (var a in msg.Attachments) {
+      var type = a.FileType switch {
+        ChatMessageAttachment.AttachmentType.Pdf   => Llm.EmbeddingInputType.Pdf,
+        ChatMessageAttachment.AttachmentType.Image => Llm.EmbeddingInputType.Image,
+        _ => Llm.EmbeddingInputType.Text
+      };
+      var path = a.FileType == ChatMessageAttachment.AttachmentType.Text
+        ? a.FilePath
+        : Fs.FsService.FileNameToLocalPath(msg.ConvId, a.FilePath);
 
-    int chunkIdxContent = 0;
-    var vec = await _llm.GetEmbeddingAsync(Llm.EmbeddingInputType.Text, msg.Content);
-    foreach (var embedding in vec)
-    {
-      await _db.SetDocChunksAsync($"{msg.Id}:{chunkIdxContent++}", msg.Content, embedding);
-    }
-
-    if (msg.Attachments.Count > 0)
-    {
-      foreach (var a in msg.Attachments)
-      {
-        int chunkIdxAtch = 0;
-        var embedInputType = a.FileType == ChatMessageAttachment.AttachmentType.Image
-          ? Llm.EmbeddingInputType.Image
-          : Llm.EmbeddingInputType.Pdf;
-        var embeddings = await _llm.GetEmbeddingAsync(embedInputType, a.FilePath);
-        foreach (var embedding in embeddings)
-        {
-          await _db.SetDocChunksAsync($"{msg.Id}:{chunkIdxAtch++}", a.FilePath, embedding);
-        }
-      }
+      var attEmbeddings = await _llm.GetEmbeddingAsync(type, path);
+      foreach (var r in attEmbeddings)
+        await _db.SetDocChunksAsync(
+          msg.UserId,
+          msg.ConvId,
+          r.Chunk,
+          r.Embedding
+        );
     }
 
     return msg;

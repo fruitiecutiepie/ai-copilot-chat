@@ -2,7 +2,6 @@
 using System.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.SemanticKernel;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
@@ -41,7 +40,6 @@ public class Program
     // Infrastructure
     builder.Services.AddSingleton<SqliteConnection>(_ =>
     {
-
       var conn = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
       conn.Open();
       conn.EnableExtensions(true);
@@ -62,7 +60,7 @@ public class Program
       using var cmd0 = conn.CreateCommand();
       cmd0.CommandText = "SELECT vec_distance_cosine(x'00000000', x'00000000');";
       var zero = cmd0.ExecuteScalar(); // should return 0, no exception
-      Console.WriteLine($"vec0 loaded: vector_distance test = {zero}");
+      Console.WriteLine($"vec0 loaded: vec_distance_cosine test = {zero}");
 
       using (var cmd = conn.CreateCommand())
       {
