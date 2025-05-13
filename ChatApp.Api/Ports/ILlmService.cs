@@ -14,5 +14,5 @@ public interface ILlmService
     string userId,
     string content
   );
-  Task<List<float[]>> GetEmbeddingAsync(EmbeddingInputType type, string source);
+  Task<List<EmbeddingResult>> GetEmbeddingAsync(EmbeddingInputType type, string source);
 }

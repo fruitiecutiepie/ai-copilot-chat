@@ -26,7 +26,6 @@ public record EmbeddingResult(string Chunk, float[] Embedding);
 public class LlmService : ILlmService
 {
   readonly IDbService _db;
-  // readonly IFsService _fs;
 
   private readonly ChatClient _clientOpenAi;
   private readonly HttpClient _httpCohere;
@@ -36,7 +35,6 @@ public class LlmService : ILlmService
 
   public LlmService(
     IDbService db,
-    // IFsService fs,
 
     ChatClient chatClientOpenAi,
     IHttpClientFactory httpFactory
@@ -44,7 +42,6 @@ public class LlmService : ILlmService
   )
   {
     _db = db;
-    // _fs = fs;
 
     _clientOpenAi = chatClientOpenAi;
     _httpCohere = httpFactory.CreateClient("Cohere");
@@ -60,9 +57,6 @@ public class LlmService : ILlmService
   {
     // assemble system + RAG multimodal + history summary
     var messages = await GetPromptMessagesAsync(convId, userId, content);
-
-    var messagesJson = JsonSerializer.Serialize(messages);
-    Console.WriteLine($"Prompt messages: {(messagesJson.Length > 500 ? messagesJson.Substring(0, 500) + "..." : messagesJson)}");
 
     await foreach (var update in _clientOpenAi.CompleteChatStreamingAsync(messages))
     {
@@ -84,18 +78,14 @@ public class LlmService : ILlmService
       )
     };
 
-    var embeddingResults = await GetEmbeddingAsync(EmbeddingInputType.Query, content);
-
-    var top = embeddingResults.First();
-    var queryChunk  = top.Chunk;
-    var queryVector = top.Embedding;
+    var embeddings = await GetEmbeddingAsync(EmbeddingInputType.Query, content);
+    var queryVector = embeddings.First();
 
     var docs = await _db.GetDocChunksContentTopKAsync(queryVector, 5);
-    // Console.WriteLine($"Top K docs: {string.Join(", ", docs)}");
     if (docs.Any())
     {
       msgs.Add(new SystemChatMessage(
-        $"Here are relevant excerpts for “{queryChunk}”:\n{string.Join("\n", docs)}"
+        $"Here are relevant excerpts: {string.Join("\n", docs.ToArray())}"
       ));
     }
 
@@ -127,19 +117,15 @@ public class LlmService : ILlmService
     return msgs;
   }
 
-  public async Task<List<EmbeddingResult>> GetEmbeddingAsync(EmbeddingInputType type, string source)
+  public async Task<List<float[]>> GetEmbeddingAsync(EmbeddingInputType type, string source)
   {
-    string[] chunkSources;
     object[] inputs;
-
-    Console.WriteLine($"Embedding source: {source}");
     switch (type)
     {
       case EmbeddingInputType.Query:
       case EmbeddingInputType.Text:
         // Max tokens (context length): https://docs.cohere.com/docs/cohere-embed
         var textChunks = SplitByTokens(source, 128_000);
-        chunkSources = textChunks.ToArray();
         inputs = textChunks.Select(chunk => new
         {
           content = new object[] {
@@ -149,60 +135,34 @@ public class LlmService : ILlmService
         break;
 
       case EmbeddingInputType.Image:
+        var imgBytes = await File.ReadAllBytesAsync(source);
+        var ext = Path.GetExtension(source).TrimStart('.');
+        var b64 = Convert.ToBase64String(imgBytes);
+
+        var imageChunks = SplitByTokens(b64, 128_000);
+        inputs = imageChunks.Select(chunk => new
         {
-          var rawBytes = await File.ReadAllBytesAsync(source);
-          using var originalBitmap = SKBitmap.Decode(rawBytes);
-
-          // 2downscale + encode to JPEG
-          byte[] jpegBytes = DownscaleAndEncodeJpeg(
-            originalBitmap,
-            maxWidth: 1024,
-            quality: 80
-          );
-
-          // base64-encode the resized image
-          string ext = Path.GetExtension(source).TrimStart('.');
-          var base64Img = Convert.ToBase64String(jpegBytes);
-
-          // treat the entire image (or chunk it if needed) as a single “chunk”
-          chunkSources = new[] { base64Img };
-          inputs = chunkSources.Select(chunk => new
-          {
-            content = new object[] {
-            // new { type = "text", text = _fs.FileNameToPublicUrl(source) },
+          content = new object[] {
+            new { type = "text", text = source },
             new {
               type = "image_url",
               image_url = new { url = $"data:image/{ext};base64,{chunk}" }
             }
           }
-          }).ToArray();
-          break;
-        }
-      case EmbeddingInputType.Pdf:
-        // Read PDF and get SKBitmap[] for each page
-        byte[] pdfBytes = File.ReadAllBytes(source);
-        string pdfBase64 = Convert.ToBase64String(pdfBytes);
-        SKBitmap[] pages = PDFtoImage.Conversion
-          .ToImages(pdfBase64)
-          .ToArray();
-
-        // Downscale + JPEG‐encode each page, then wrap as a data URI
-        string[] pageDataUris = pages.Select(bitmap =>
-        {
-          byte[] jpegBytes = DownscaleAndEncodeJpeg(
-            bitmap,
-            maxWidth: 1024,
-            quality: 80 // JPEG quality
-          );
-          return ToDataUri(jpegBytes, "image/jpeg");
         }).ToArray();
-        chunkSources = pageDataUris;
+        break;
 
-        // string pdfUrl = _fs.FileNameToPublicUrl(source);
-        inputs = pageDataUris.Select(dataUri => new {
+      case EmbeddingInputType.Pdf:
+        var pagesB64 = RenderPdfToBase64Pages(source);
+        var pdfChunks = SplitByTokens(string.Concat(pagesB64), 128_000);
+        inputs = pdfChunks.Select(chunk => new
+        {
           content = new object[] {
-            // new { type = "text", text = pdfUrl },
-            new { type = "image_url", image_url = new { url = dataUri } }
+            new { type = "text", text = source },
+            new {
+              type = "image_url",
+              image_url = new { url = $"data:image/png;base64,{chunk}" }
+            }
           }
         }).ToArray();
         break;
@@ -225,28 +185,25 @@ public class LlmService : ILlmService
       "https://api.cohere.com/v2/embed",
       reqBody
     );
-    if (!resp.IsSuccessStatusCode)
-    {
-      var err = await resp.Content.ReadAsStringAsync();
-      Console.Error.WriteLine(err);            // inspect the real error JSON
-      resp.EnsureSuccessStatusCode();
-    }
+    resp.EnsureSuccessStatusCode();
 
-    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+    using var doc = JsonDocument.Parse(
+      await resp.Content.ReadAsStringAsync()
+    );
     var floatArrays = doc.RootElement
       .GetProperty("embeddings")
       .GetProperty("float")
       .EnumerateArray();
 
-    // 4) build your results by zipping chunkSources with the embeddings
-    var results = new List<EmbeddingResult>();
-    var idx = 0;
+    var results = new List<float[]>();
     foreach (var arr in floatArrays)
     {
-      var vec = arr.EnumerateArray().Select(e => e.GetSingle()).ToArray();
-      results.Add(new EmbeddingResult(chunkSources[idx++], vec));
+      results.Add(arr
+        .EnumerateArray()
+        .Select(e => e.GetSingle())
+        .ToArray()
+      );
     }
-
     return results;
   }
 
@@ -280,43 +237,19 @@ public class LlmService : ILlmService
     return chunks;
   }
 
-  /// <summary>
-  /// Downscales the bitmap to the specified max width (preserving aspect ratio),
-  /// then encodes it as a JPEG byte array at the given quality.
-  /// </summary>
-  public static byte[] DownscaleAndEncodeJpeg(SKBitmap original, int maxWidth = 1024, int quality = 80)
+  private static string[] RenderPdfToBase64Pages(string path)
   {
-    SKBitmap resized = original;
-    if (original.Width > maxWidth)
-    {
-      float scale = maxWidth / (float)original.Width;
-      int newHeight = (int)(original.Height * scale);
-      resized = original.Resize(
-        new SKImageInfo(maxWidth, newHeight),
-        SKSamplingOptions.Default
-      ) ?? original;
-    }
-
-    byte[] jpegData;
-    using (var img  = SKImage.FromBitmap(resized))
-    using (var data = img.Encode(SKEncodedImageFormat.Jpeg, quality))
-      jpegData = data.ToArray();
-
-    if (!ReferenceEquals(resized, original))
-      resized.Dispose();
-
-    return jpegData;
+    return PDFtoImage.Conversion
+      .ToImages(path)
+      .Select(bitmap =>
+      {
+        using var img = SKImage.FromBitmap(bitmap);
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+        return Convert.ToBase64String(data.ToArray());
+      })
+      .ToArray();
   }
-
-  /// <summary>
-  /// Converts a byte array into a data URI with the specified MIME type.
-  /// </summary>
-  public static string ToDataUri(byte[] bytes, string mimeType)
-  {
-    var b64 = Convert.ToBase64String(bytes);
-    return $"data:{mimeType};base64,{b64}";
-  }
-
+  
   // private static IEnumerable<string> ChunkText(string text, int chunkSize = 500, int overlap = 50)
   // {
   //   var words = text.Split(new[] { ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
