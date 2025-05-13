@@ -1,4 +1,4 @@
-import { USER_ID } from "@/app/page";
+import { CONV_ID, SERVER_DOMAIN, USER_ID } from "@/app/page";
 import { ChatMessage } from "@/types";
 import { useCallback } from "react";
 import Image from "next/image";
@@ -11,8 +11,9 @@ export default function ChatWindow(
   { messages }: ChatWindowProps
 ) {
   // helper to fetch a blob and either open or download it
-  const handleDownload = useCallback(async (url: string, viewInline = false) => {
+  const handleDownload = useCallback(async (fileName: string, viewInline = false) => {
     try {
+      const url = `http://${SERVER_DOMAIN}/uploads/${CONV_ID}/${fileName}`;
       const res = await fetch(url);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -53,7 +54,9 @@ export default function ChatWindow(
               {msg.content}
 
               {/* attachments */}
-              {msg.attachmentUrls?.map((url, i) => {
+              {msg.attachments?.map((atch, i) => {
+                const url = atch.filePath;
+                if (!url) return null;
                 if (url.endsWith(".pdf")) {
                   return (
                     <button
@@ -69,7 +72,7 @@ export default function ChatWindow(
                   return (
                     <Image
                       key={i}
-                      src={url}
+                      src={`http://${SERVER_DOMAIN}/uploads/${CONV_ID}/${url}`}
                       alt={`attach-${i}`}
                       className="mt-2 max-w-full h-auto rounded"
                       style={{ maxWidth: "100%", height: "auto" }}
