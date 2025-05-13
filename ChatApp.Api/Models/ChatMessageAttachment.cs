@@ -9,8 +9,12 @@ public class ChatMessageAttachment
   [JsonConverter(typeof(JsonStringEnumConverter))]
   public enum AttachmentType
   {
+    Text,
+    Json,
+    Csv,
+    Pdf,
     Image,
-    Pdf
+    Other
   }
 
   [Key]

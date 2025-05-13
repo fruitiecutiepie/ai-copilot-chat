@@ -19,10 +19,10 @@ public class FsService : IFsService
     _env = env;
   }
 
-  public string FileNameToPublicUrl(string convId, string fileNameEncrypted)
+  public string FileNameToPublicUrl(string convId, string fileName)
   {
     var req = _httpCtx.HttpContext!.Request;
-    return $"{req.Scheme}://{req.Host}/uploads/{convId}/{fileNameEncrypted}";
+    return $"{req.Scheme}://{req.Host}/uploads/{convId}/{fileName}";
   }
 
   public static string UrlToLocalPath(string convId, string publicUrl)
@@ -35,31 +35,31 @@ public class FsService : IFsService
     if (segments.Length != 2 || segments[0] != "uploads")
       throw new InvalidOperationException("Not an uploads URL");
 
-    var fileNameEncrypted = segments[1];
+    var fileName = segments[1];
     var uploadsFolder = Path.Combine(_env.ContentRootPath, "UserData", "uploads", convId);
-    return Path.Combine(uploadsFolder, fileNameEncrypted);
+    return Path.Combine(uploadsFolder, fileName);
   }
 
-  public static string FileNameToLocalPath(string convId, string fileNameEncrypted)
+  public static string FileNameToLocalPath(string convId, string fileName)
   {
-    return Path.Combine("UserData/uploads", convId, fileNameEncrypted).Replace("\\", "/");
+    return Path.Combine("UserData/uploads", convId, fileName).Replace("\\", "/");
   }
 
   public async Task<string> SetChatMessageAttachmentAsync(
     string convId,
     Stream fileStream,
-    string fileNameEncrypted
+    string fileName
   )
   {
     var convoDir = Path.Combine(_basePath, convId);
     Directory.CreateDirectory(convoDir);
 
-    var filePath = Path.Combine(convoDir, fileNameEncrypted);
+    var filePath = Path.Combine(convoDir, fileName);
     using var outFs = File.Create(filePath);
     await fileStream.CopyToAsync(outFs);
 
-    // return relative URL path, e.g. "uploads/{convId}/{fileNameEncrypted}"
-    return Path.Combine("UserData/uploads", convId, fileNameEncrypted)
+    // return relative URL path, e.g. "uploads/{convId}/{fileName}"
+    return Path.Combine("UserData/uploads", convId, fileName)
            .Replace("\\", "/");
   }
 
