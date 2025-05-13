@@ -110,28 +110,40 @@ export default function Home() {
     const text = inputRefChat.current.value.trim();
     if (!text && selectedFilesChat.length === 0) return;
 
-    let attachmentUrls: string[] = [];
+    const form = new FormData();
+    form.append("convId", CONV_ID);
+    form.append("userId", USER_ID);
+    form.append("content", text || "");
     if (selectedFilesChat.length > 0) {
-      const form = new FormData();
-      selectedFilesChat.forEach((f) => form.append("files", f));
-      try {
-        const res = await fetch(`https://${SERVER_DOMAIN}/api/chat/upload`, {
-          method: "POST",
-          body: form,
-        });
-        const json = await res.json();
-        attachmentUrls = json.urls;
-      } catch (err) {
-        console.error("Upload failed", err);
-      }
+      selectedFilesChat.forEach((f) => form.append("attachments", f));
     }
 
-    await connRefChat.current!.invoke("ChatSendMessage",
-      USER_ID,
-      CONV_ID,
-      text,
-      attachmentUrls
+    const res = await fetch(
+      `http://${SERVER_DOMAIN}/api/chat`,
+      { method: "POST", body: form }
     );
+    if (!res.ok) throw new Error(await res.text());
+
+    try {
+      const res = await fetch(`http://${SERVER_DOMAIN}/api/chat`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) throw new Error(res.statusText);
+
+      const resJson = await res.json();
+
+      const resParsed = ChatMessageSchema.safeParse(resJson.data);
+      if (!resParsed.success) {
+        console.error("ChatMessageSchema error: ", resParsed.error);
+        throw new Error("Invalid response");
+      }
+
+      setMessages((prev) => [...prev, resParsed.data]);
+    } catch (err) {
+      console.error("Upload failed", err);
+    }
+
     inputRefChat.current.value = "";
     setSelectedFilesChat([]);
   };
