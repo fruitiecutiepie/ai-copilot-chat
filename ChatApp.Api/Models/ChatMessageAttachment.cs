@@ -19,6 +19,7 @@ public class ChatMessageAttachment
   [Required]
   public string MessageId { get; set; } = default!;
 
+  [JsonIgnore]
   [ForeignKey(nameof(MessageId))]
   public ChatMessage Message { get; set; } = default!;
 
