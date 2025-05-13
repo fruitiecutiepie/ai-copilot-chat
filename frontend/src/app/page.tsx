@@ -3,8 +3,9 @@ import { useEffect, useState, useRef } from "react";
 import { HttpTransportType, HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 
 import ChatWindow from "@/components/ChatWindow";
-import { ChatMessage } from "@/types";
+import { ChatMessage, ChatMessageSchema } from "@/types";
 import { res, resAsync } from "@/common/res";
+import { nanoid } from "nanoid";
 
 export const SERVER_DOMAIN = "localhost:5000";
 
@@ -31,7 +32,7 @@ export default function Home() {
       setShowSpacer(window.innerWidth >= 1024);
     }
     window.addEventListener("resize", onResize);
-    onResize();              // set initial
+    onResize(); // set initial
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
@@ -128,7 +129,7 @@ export default function Home() {
     }
     const conn = connRes.ok;
 
-    let didCancel = false;
+    let mounted = false;
 
     const init = async () => {
       const connRes = await resAsync(() => conn.start());
@@ -136,19 +137,42 @@ export default function Home() {
         console.error("Connection error: ", connRes.err);
         return;
       }
-      if (didCancel) return;
+      if (mounted) return;
 
       connRefLlm.current = conn;
       console.log("Connected to SignalR conn LLM");
 
-      conn.on("LlmRecvMessage", (msg: ChatMessage) =>
-        setMessagesLlm((prev) => [...prev, msg])
+      conn.on("LlmRecvMessage", (chunk: string) =>
+        setMessagesLlm(prev => {
+          // first chunk or starting a new response?
+          const last = prev[prev.length - 1];
+          if (!last || last.userId !== AI_USER_ID) {
+            // create a brand-new ChatMessage
+            const newMsg: ChatMessage = {
+              id: nanoid(),
+              userId: AI_USER_ID,
+              convId: CONV_ID,
+              content: chunk,
+              timestamp: new Date().toISOString(),
+              attachments: []
+            };
+            return [...prev, newMsg];
+          } else {
+            // append chunk to last message
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              ...last,
+              content: last.content + chunk
+            };
+            return updated;
+          }
+        })
       );
     }
     init();
 
     return (() => {
-      didCancel = true;
+      mounted = true;
       connRefLlm.current = null;
       // remove handlers and stop the connection
       conn.off("LlmRecvMessage");
@@ -163,7 +187,19 @@ export default function Home() {
     const text = inputRefLlm.current.value.trim();
     if (!text) return;
 
-    await connRefChat.current!.invoke("LlmSendMessage",
+    setMessagesLlm((prev) => [
+      ...prev,
+      {
+        id: nanoid(),
+        userId: USER_ID,
+        convId: CONV_ID,
+        content: text,
+        timestamp: new Date().toISOString(),
+        attachments: []
+      }
+    ]);
+
+    await connRefLlm.current!.invoke("LlmSendMessage",
       USER_ID,
       CONV_ID,
       text
