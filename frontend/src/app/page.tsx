@@ -329,6 +329,26 @@ export default function Home() {
                     className="border border-gray-300 rounded px-3 py-2 bg-gray-50 dark:bg-gray-900"
                     style={{ fontSize: "0.8rem" }}
                   />
+                  {selectedFilesChat.length > 0 && (
+                    <div className="flex flex-col space-y-1" style={{ fontSize: "0.8rem" }}>
+                      {selectedFilesChat.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-1 rounded">
+                          <span className="text-xs truncate">{file.name}</span>
+                          <button
+                            onClick={() => {
+                              setSelectedFilesChat(prevFiles => prevFiles.filter((_, i) => i !== index));
+                            }}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                            title="Remove file"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div
                     className="flex"
                   >
