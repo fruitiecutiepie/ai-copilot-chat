@@ -35,6 +35,18 @@ export default function ChatWindow(
 
   return (
     <div className="h-[35rem] overflow-y-auto border border-gray-300 p-4">
+      {messages.length === 0 && (
+        <div
+          className="flex items-center justify-center h-full"
+          style={{ fontSize: "0.8rem" }}
+        >
+          <div
+            className="text-xs text-gray-500"
+          >
+            No messages yet.
+          </div>
+        </div>
+      )}
       {messages.map((msg, idx) => (
         <div
           key={idx}
@@ -64,7 +76,7 @@ export default function ChatWindow(
                       onClick={() => handleDownload(url, true)}
                       className="block text-blue-600 underline mt-1"
                     >
-                      View PDF
+                      {`Download ${atch.fileName}`}
                     </button>
                   );
                 }
@@ -88,7 +100,7 @@ export default function ChatWindow(
                       onClick={() => handleDownload(url)}
                       className="block text-blue-600 underline mt-1"
                     >
-                      Download text file
+                      {`Download ${atch.fileName}`}
                     </button>
                   );
                 }
@@ -99,12 +111,12 @@ export default function ChatWindow(
                     onClick={() => handleDownload(url)}
                     className="block text-blue-600 underline mt-1"
                   >
-                    Download file
+                    {`Download ${atch.fileName}`}
                   </button>
                 );
               })}
 
-              <div className="text-xs text-right">
+              <div className="text-xs text-right text-gray-500 mt-1">
                 {new Date(msg.timestamp).toLocaleTimeString()}
               </div>
             </div>

@@ -254,13 +254,13 @@ export default function Home() {
         <div
           className="text-xs text-gray-500"
         >
-          {connRefChat.current ? "Connected" : "Connecting..."}
+          {connRefChat.current !== null ? "Connected" : "Connecting..."}
         </div>
         <div
           className="w-2 h-2 rounded-full bg-green-500 ml-2"
           style={{
-            animation: connRefChat.current ? "none" : "pulse 1s infinite",
-            opacity: connRefChat.current ? 1 : 0.5,
+            animation: connRefChat.current !== null ? "none" : "pulse 1s infinite",
+            opacity: connRefChat.current !== null ? 1 : 0.5,
           }}
         />
       </div> */}
@@ -282,7 +282,7 @@ export default function Home() {
             </h1>
             {connRefChat.current && (
               <button
-                className="bg-blue-600 text-white px-4 py-2 rounded"
+                className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                 onClick={() => {
                   setChatLlmOpen(!chatLlmOpen);
                   if (inputRefChat.current) {
@@ -311,7 +311,7 @@ export default function Home() {
           <div
             className="flex flex-col h-full space-y-2"
           >
-            {connRefChat.current ? (
+            {connRefChat.current !== null ? (
               <div>
                 <ChatWindow
                   messages={messages}
@@ -361,7 +361,7 @@ export default function Home() {
                     />
                     <button
                       onClick={sendChat}
-                      className="bg-blue-600 text-white px-4 rounded-r"
+                      className="bg-blue-600 text-white p-2 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                     >
                       Send
                     </button>
@@ -425,7 +425,7 @@ export default function Home() {
                   />
                   <button
                     onClick={sendChatLlm}
-                    className="bg-blue-600 text-white px-4 rounded-r"
+                    className="bg-blue-600 text-white p-2 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                   >
                     Send
                   </button>
