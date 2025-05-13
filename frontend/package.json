@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.7",
+    "nanoid": "^5.1.5",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
