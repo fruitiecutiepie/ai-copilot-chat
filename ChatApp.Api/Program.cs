@@ -81,7 +81,9 @@ public class Program
     builder.Services.AddScoped<IDbService, DbService>();
     builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<ILlmService, LlmService>();
-    // builder.Services.AddScoped<IFsService, FsService>();
+
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IFsService, FsService>();
 
     // HTTP Clients
     builder.Services.AddSingleton(sp => {
