@@ -175,58 +175,58 @@ public class Program
       var db = scope.ServiceProvider.GetRequiredService<DbServiceContext>();
       db.Database.Migrate();
 
-      if (await db.ChatMessages.AnyAsync())
-        return;
-
-      // // Delete previous data
-      // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessages");
-      // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessageAttachments");
-
-      var chatSvc = scope.ServiceProvider.GetRequiredService<IChatService>();
-
-      var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "Services/Db/Seed/seed.json"));
-      var seeds = JsonSerializer.Deserialize<List<DbSeeder.ChatMessageSeed>>(seedJson,
-        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-      );
-
-      if (seeds != null)
+      if (!await db.ChatMessages.AnyAsync())
       {
-        Console.WriteLine($"Seeding {seeds.Count} chat messages...");
-        foreach (var s in seeds)
+        // // Delete previous data
+        // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessages");
+        // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessageAttachments");
+
+        var chatSvc = scope.ServiceProvider.GetRequiredService<IChatService>();
+
+        var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "Services/Db/Seed/seed.json"));
+        var seeds = JsonSerializer.Deserialize<List<DbSeeder.ChatMessageSeed>>(seedJson,
+          new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        );
+
+        if (seeds != null)
         {
-          var msg = new Models.ChatMessage
+          Console.WriteLine($"Seeding {seeds.Count} chat messages...");
+          foreach (var s in seeds)
           {
-            Id = s.Id,
-            UserId = s.UserId,
-            ConvId = s.ConvId,
-            Content = s.Content,
-            Timestamp = s.Timestamp,
-            Attachments = s.Attachments.Select(fp =>
+            var msg = new Models.ChatMessage
             {
-              var fileName = Path.GetFileName(fp);
-              var ext = Path.GetExtension(fp).ToLowerInvariant().TrimStart('.');
-              var type = ext switch
+              Id = s.Id,
+              UserId = s.UserId,
+              ConvId = s.ConvId,
+              Content = s.Content,
+              Timestamp = s.Timestamp,
+              Attachments = s.Attachments.Select(fp =>
               {
-                "txt" or "md" => ChatMessageAttachment.AttachmentType.Text,
-                "json" => ChatMessageAttachment.AttachmentType.Json,
-                "csv" => ChatMessageAttachment.AttachmentType.Csv,
-                "pdf" => ChatMessageAttachment.AttachmentType.Pdf,
-                "png" or "jpg" or "jpeg" => ChatMessageAttachment.AttachmentType.Image,
-                _ => ChatMessageAttachment.AttachmentType.Other
-              };
+                var fileName = Path.GetFileName(fp);
+                var ext = Path.GetExtension(fp).ToLowerInvariant().TrimStart('.');
+                var type = ext switch
+                {
+                  "txt" or "md" => ChatMessageAttachment.AttachmentType.Text,
+                  "json" => ChatMessageAttachment.AttachmentType.Json,
+                  "csv" => ChatMessageAttachment.AttachmentType.Csv,
+                  "pdf" => ChatMessageAttachment.AttachmentType.Pdf,
+                  "png" or "jpg" or "jpeg" => ChatMessageAttachment.AttachmentType.Image,
+                  _ => ChatMessageAttachment.AttachmentType.Other
+                };
 
-              return new ChatMessageAttachment
-              {
-                Id = NanoidDotNet.Nanoid.Generate(),
-                MessageId = s.Id,
-                FileName = fileName,
-                FilePath = fileName,
-                FileType = type
-              };
-            }).ToList()
-          };
+                return new ChatMessageAttachment
+                {
+                  Id = NanoidDotNet.Nanoid.Generate(),
+                  MessageId = s.Id,
+                  FileName = fileName,
+                  FilePath = fileName,
+                  FileType = type
+                };
+              }).ToList()
+            };
 
-          await chatSvc.SetChatMessageAsync(msg);
+            await chatSvc.SetChatMessageAsync(msg);
+          }
         }
       }
     }
