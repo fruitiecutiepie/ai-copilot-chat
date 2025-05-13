@@ -4,11 +4,11 @@ namespace ChatApp.Api.Ports;
 
 public interface IDbService
 {
-  Task SetDbChatMessageAsync(ChatMessage msg);
-  Task SetDbChatMessageAttachmentAsync(string messageId, string filePath);
-  Task<IReadOnlyList<ChatMessage>> GetDbChatMessagesAsync(string conversationId, int limit);
+  Task SetDbChatMessagesAsync(IEnumerable<ChatMessage> messages);
+  Task SetDbChatMessageAttachmentsAsync(IEnumerable<ChatMessageAttachment> attachments);
+  Task<IReadOnlyList<ChatMessage>> GetDbChatMessagesAsync(string convId);
   Task<IEnumerable<string>> GetDbChatConversationsAsync(string userId);
 
   Task<List<string>> GetDocChunksContentTopKAsync(float[] query, int k);
-  Task SetDocChunksAsync(string id, string content, float[] embedding);
+  Task SetDocChunksAsync(string userId, string convId, string chunk, float[] embedding);
 }

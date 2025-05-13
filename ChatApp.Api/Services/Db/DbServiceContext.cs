@@ -1,14 +1,18 @@
 using ChatApp.Api.Models;
+using ChatApp.Api.Ports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace ChatApp.Api.Services.Db;
 
-public class DbServiceContext(
-  DbContextOptions<DbServiceContext> opts
-): DbContext(opts) {
+public class DbServiceContext : DbContext, IDbServiceContext
+{
   public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
   public DbSet<ChatMessageAttachment> ChatMessageAttachments => Set<ChatMessageAttachment>();
+
+  public DbServiceContext(
+    DbContextOptions<DbServiceContext> opts
+  ) : base(opts) { }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

@@ -7,4 +7,6 @@ public interface IDbServiceContext
 {
   DbSet<ChatMessage> ChatMessages { get; }
   DbSet<ChatMessageAttachment> ChatMessageAttachments { get; }
+
+  Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
