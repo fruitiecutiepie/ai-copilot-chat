@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 export const SERVER_DOMAIN = "localhost:5000";
 
 export const USER_ID = "A1b2C3d4E5f6G7h8I9j0K";
+export const AI_USER_ID = "AI_ASSISTANT";
 export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 
 export default function Home() {
@@ -34,6 +35,28 @@ export default function Home() {
     window.addEventListener("resize", onResize);
     onResize(); // set initial
     return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`http://${SERVER_DOMAIN}/api/chat/${CONV_ID}`);
+        if (!res.ok) throw new Error(res.statusText);
+        const json = await res.json();
+        const parsed = ChatMessageSchema.array().safeParse(json);
+        if (!parsed.success) throw parsed.error;
+        if (cancelled) return;
+
+        const all = parsed.data;
+        console.log("ChatMessageSchema", JSON.stringify(all, null, 2));
+        setMessages(all.filter(m => m.userId !== AI_USER_ID));
+        setMessagesLlm(all.filter(m => m.userId === AI_USER_ID));
+      } catch (err) {
+        console.error("History fetch error:", err);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
