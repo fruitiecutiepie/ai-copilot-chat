@@ -14,6 +14,8 @@ using ChatApp.Api.Services.Chat.Ui;
 using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
 using ChatApp.Api.Services.Db.Seed;
+using ChatApp.Api.Services.Fs;
+using ChatApp.Api.Models;
 
 namespace ChatApp.Api;
 
@@ -31,9 +33,7 @@ public class Program
     var builder = WebApplication.CreateBuilder(args);
 
     // Config
-    builder.Services.Configure<OpenAISettings>(
-      builder.Configuration.GetSection("OpenAI")
-    );
+    builder.Services.Configure<AppSettings>(builder.Configuration);
 
     // Infrastructure
     builder.Services.AddDbContext<DbServiceContext>(opt =>
@@ -85,17 +85,17 @@ public class Program
 
     // HTTP Clients
     builder.Services.AddSingleton(sp => {
-      var opts = sp.GetRequiredService<IOptions<OpenAISettings>>().Value;
+      var opts = sp.GetRequiredService<IOptions<AppSettings>>().Value;
       return new ChatClient(
-        model: opts.Model, // "gpt-4.1-mini-2025-04-14" (https://platform.openai.com/docs/models/gpt-4.1-mini)
-        apiKey: opts.ApiKey
+        model: opts.OpenAI.Model, // "gpt-4.1-mini-2025-04-14" (https://platform.openai.com/docs/models/gpt-4.1-mini)
+        apiKey: opts.OpenAI.ApiKey
       );
     });
     builder.Services.AddHttpClient("Cohere", (sp, client) =>
     {
       var config = sp.GetRequiredService<IOptions<AppSettings>>().Value;
       client.DefaultRequestHeaders.Authorization =
-      new AuthenticationHeaderValue("Bearer", config.Cohere.ApiKey);
+        new AuthenticationHeaderValue("Bearer", config.Cohere.ApiKey);
     });
 
     // CORS
@@ -118,27 +118,18 @@ public class Program
 
     var app = builder.Build();
 
-    // Auto-migrate
-    using (var scope = app.Services.CreateScope())
-    {
-      var db = scope.ServiceProvider.GetRequiredService<DbServiceContext>();
-      db.Database.Migrate();
-
-      await DbSeeder.SeedFromJsonAsync(db);
-    }
+    app.UseRouting();
+    app.UseCors("AllowClient");
 
     // Local file storage
     {
       var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "UserData/uploads");
       if (!Directory.Exists(uploadsPath))
-      {
-      Directory.CreateDirectory(uploadsPath);
-      }
+        Directory.CreateDirectory(uploadsPath);
 
-      app.UseStaticFiles(new StaticFileOptions
-      {
+      app.UseStaticFiles(new StaticFileOptions {
         FileProvider = new PhysicalFileProvider(uploadsPath),
-        RequestPath = "/api/uploads"
+        RequestPath = "/uploads",
       });
     }
 
