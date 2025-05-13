@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using System.Net.Http.Headers;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
@@ -12,9 +11,10 @@ using ChatApp.Api.Ports;
 using ChatApp.Api.Services.Chat.Ui;
 using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
-using ChatApp.Api.Services.Db.Seed;
 using ChatApp.Api.Services.Fs;
 using ChatApp.Api.Models;
+using Dapper;
+using System.Data;
 
 namespace ChatApp.Api;
 
@@ -31,84 +31,83 @@ public class Program
       Directory.CreateDirectory(userDataPath);
 
     AppContext.SetSwitch("Microsoft.Data.Sqlite.EnableExtensions", true);
-    
+
     var builder = WebApplication.CreateBuilder(args);
 
     // Config
     builder.Services.Configure<AppSettings>(builder.Configuration);
 
     // Infrastructure
-    builder.Services.AddSingleton<SqliteConnection>(_ =>
+    builder.Services.AddSingleton<IDbConnection>(_ =>
     {
       var conn = new SqliteConnection($"Data Source={dbPath};Cache=Shared");
       conn.Open();
       conn.EnableExtensions(true);
 
-      // https://github.com/asg017/sqlite-vec
       var extPath = Path.Combine(AppContext.BaseDirectory, "vec0.dylib");
-      Console.WriteLine($"Loading vec0 from {extPath}");
-      try
-      {
-        conn.LoadExtension(extPath);
-      }
-      catch (Exception ex)
-      {
-        Console.Error.WriteLine($"Failed to load vec0: {ex.Message}");
-        throw;
-      }
+      conn.LoadExtension(extPath);
 
-      using var cmd0 = conn.CreateCommand();
-      cmd0.CommandText = "SELECT vec_distance_cosine(x'00000000', x'00000000');";
-      var zero = cmd0.ExecuteScalar(); // should return 0, no exception
-      Console.WriteLine($"vec0 loaded: vec_distance_cosine test = {zero}");
+      // sanity check
+      var zero = conn.ExecuteScalar<long>(
+        "SELECT vec_distance_cosine(x'00000000', x'00000000');"
+      );
+      Console.WriteLine($"vec0 loaded: {zero}");
 
-      using (var cmd = conn.CreateCommand())
-      {
-        cmd.CommandText = "PRAGMA journal_mode=WAL;";
-        cmd.ExecuteNonQuery();
+      // ensure foreign keys and WAL mode
+      conn.Execute("PRAGMA foreign_keys = ON;");
+      conn.Execute("PRAGMA journal_mode = WAL;");
+      conn.Execute("PRAGMA synchronous = NORMAL;");
 
-        cmd.CommandText = "PRAGMA synchronous=NORMAL;";
-        cmd.ExecuteNonQuery();
+      // vector‐db tables
+      conn.Execute(@"
+        CREATE TABLE IF NOT EXISTS doc_chunks(
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id  TEXT    NOT NULL,
+          conv_id  TEXT    NOT NULL,
+          chunk    TEXT    NOT NULL
+        );
+      ");
+      conn.Execute(@"
+        CREATE VIRTUAL TABLE IF NOT EXISTS vec_doc_chunks
+        USING vec0(
+          doc_id     INTEGER PRIMARY KEY,
+          embedding  FLOAT[1536]  distance_metric=cosine
+        );
+      ");
 
-        // cmd.CommandText = @"
-        //   DROP TABLE IF EXISTS doc_chunks;
-        //   DROP TABLE IF EXISTS vec_doc_chunks;
-        // ";
-        // cmd.ExecuteNonQuery();
+      // ChatMessages table
+      conn.Execute(@"
+        CREATE TABLE IF NOT EXISTS ChatMessages (
+          Id        TEXT    PRIMARY KEY,
+          Content   TEXT    NOT NULL,
+          ConvId    TEXT    NOT NULL,
+          Timestamp TEXT    NOT NULL,
+          UserId    TEXT    NOT NULL
+        );
+      ");
 
-        cmd.CommandText = @"
-          CREATE TABLE IF NOT EXISTS doc_chunks(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            conv_id TEXT NOT NULL,
-            chunk TEXT NOT NULL
-          );
-        ";
-        cmd.ExecuteNonQuery();
-
-        cmd.CommandText = @"
-          CREATE VIRTUAL TABLE IF NOT EXISTS vec_doc_chunks
-          USING vec0(
-            doc_id INTEGER PRIMARY KEY,
-            embedding FLOAT[1536] distance_metric=cosine
-          );
-        ";
-        cmd.ExecuteNonQuery();
-      }
+      // ChatMessageAttachments table
+      conn.Execute(@"
+        CREATE TABLE IF NOT EXISTS ChatMessageAttachments (
+          Id         TEXT    PRIMARY KEY,
+          FilePath   TEXT    NOT NULL UNIQUE,
+          MessageId  TEXT    NOT NULL,
+          FileName   TEXT    NOT NULL DEFAULT '',
+          FileType   INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY(MessageId) REFERENCES ChatMessages(Id) ON DELETE CASCADE
+        );
+      ");
+      conn.Execute(@"
+        CREATE INDEX IF NOT EXISTS
+          IX_ChatMessageAttachments_MessageId
+        ON ChatMessageAttachments(MessageId);
+      ");
 
       return conn;
     });
-    // builder.Services.AddMemoryCache();
 
     // Services
-    builder.Services.AddDbContext<DbServiceContext>((sp, opts) =>
-    {
-      var conn = sp.GetRequiredService<SqliteConnection>();
-      opts.UseSqlite(conn);
-    });
-    builder.Services.AddScoped<IDbServiceContext, DbServiceContext>();
     builder.Services.AddScoped<IDbService, DbService>();
-
     builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<ILlmService, LlmService>();
 
@@ -131,7 +130,7 @@ public class Program
     });
 
     // CORS
-    builder.Services.AddCors(opt => 
+    builder.Services.AddCors(opt =>
       opt.AddPolicy("AllowClient", p => {
         p.WithOrigins("http://localhost:3000")
         .AllowAnyHeader()
@@ -172,19 +171,18 @@ public class Program
     // Auto-migrate
     using (var scope = app.Services.CreateScope())
     {
-      var db = scope.ServiceProvider.GetRequiredService<DbServiceContext>();
-      db.Database.Migrate();
+      var conn = scope.ServiceProvider.GetRequiredService<IDbConnection>();
 
-      if (!await db.ChatMessages.AnyAsync())
+      // check if we already have any messages
+      var existing = await conn.QuerySingleAsync<int>(
+        "SELECT COUNT(1) FROM ChatMessages"
+      );
+      if (existing == 0)
       {
-        // // Delete previous data
-        // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessages");
-        // db.Database.ExecuteSqlRaw("DELETE FROM ChatMessageAttachments");
-
         var chatSvc = scope.ServiceProvider.GetRequiredService<IChatService>();
 
-        var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "Services/Db/Seed/seed.json"));
-        var seeds = JsonSerializer.Deserialize<List<DbSeeder.ChatMessageSeed>>(seedJson,
+        var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "Services/Db/seed.json"));
+        var seeds = JsonSerializer.Deserialize<List<ChatMessageSeed>>(seedJson,
           new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
         );
 

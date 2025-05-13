@@ -28,7 +28,7 @@ public class ChatService : IChatService
   public async Task<ChatMessage> SetChatMessageAsync(
     ChatMessage msg
   ) {
-    await _db.SetDbChatMessagesAsync(new[] { msg });
+    await _db.SetDbChatMessages(new[] { msg });
     // await _hub.Clients.Group(msg.ConvId).SendAsync("ChatRecvMessage", msg);
 
     var textEmbeddings = await _llm.GetEmbeddingAsync(

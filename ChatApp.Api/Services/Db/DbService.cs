@@ -1,83 +1,114 @@
+using System.Data;
 using System.Runtime.InteropServices;
 using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
-using Microsoft.Data.Sqlite;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Api.Services.Db;
 
+public class ChatMessageSeed
+{
+  public required string Id { get; set; }
+  public required string UserId { get; set; }
+  public required string ConvId { get; set; }
+  public required string Content { get; set; }
+  public required DateTime Timestamp { get; set; }
+  public required List<string> Attachments { get; set; }
+}
+
 public class DbService : IDbService
 {
-  private static readonly SemaphoreSlim _semaphore = new(1,1);
-  private readonly IDbServiceContext _dbContext;
-  private readonly SqliteConnection _vectorConn;
+  private static readonly SemaphoreSlim _semaphore = new(1, 1);
+  private readonly IDbConnection _db;
 
   public DbService(
-    IDbServiceContext dbContext,
-    SqliteConnection vectorConn
+    IDbConnection dbContext
   )
   {
-    _dbContext = dbContext;
-    _vectorConn = vectorConn;
+    _db = dbContext;
   }
 
-  public async Task SetDbChatMessagesAsync(
+  public Task SetDbChatMessages(
     IEnumerable<ChatMessage> messages
-  ) {
-    _dbContext.ChatMessages.AddRange(messages);
-    await _dbContext.SaveChangesAsync();
+  )
+  {
+    const string sql = @"
+      INSERT OR IGNORE INTO ChatMessages
+        (Id, Content, ConvId, Timestamp, UserId)
+      VALUES
+        (@Id, @Content, @ConvId, @Timestamp, @UserId)";
+    return _db.ExecuteAsync(sql, messages);
   }
 
-  public async Task SetDbChatMessageAttachmentsAsync(
+  public Task SetDbChatMessageAttachments(
     IEnumerable<ChatMessageAttachment> attachments
-  ) {
-    _dbContext.ChatMessageAttachments.AddRange(attachments);
-    await _dbContext.SaveChangesAsync();
+  )
+  {
+    const string sql = @"
+      INSERT OR IGNORE INTO ChatMessageAttachments
+        (Id, FilePath, MessageId, FileName, FileType)
+      VALUES
+        (@Id, @FilePath, @MessageId, @FileName, @FileType)";
+    return _db.ExecuteAsync(sql, attachments);
   }
 
   public async Task<IReadOnlyList<ChatMessage>> GetDbChatMessagesAsync(
     string convId
-  ) {
-    return await _dbContext.ChatMessages
-      .Where(m => m.ConvId == convId)
-      .OrderBy(m => m.Timestamp)
-      .Include(m => m.Attachments)
-      .AsNoTracking()
-      .ToListAsync();
+  )
+  {
+    const string sql = @"
+      SELECT
+        m.Id, m.Content, m.ConvId, m.Timestamp, m.UserId,
+        a.Id, a.FilePath, a.MessageId, a.FileName, a.FileType
+      FROM ChatMessages m
+      LEFT JOIN ChatMessageAttachments a
+        ON a.MessageId = m.Id
+      WHERE m.ConvId = @ConvId
+      ORDER BY m.Timestamp";
+    var lookup = new Dictionary<string, ChatMessage>();
+    await _db.QueryAsync<ChatMessage, ChatMessageAttachment, ChatMessage>(
+      sql,
+      (msg, att) =>
+      {
+        if (!lookup.TryGetValue(msg.Id, out var entry))
+        {
+          entry = msg;
+          entry.Attachments = new List<ChatMessageAttachment>();
+          lookup[msg.Id] = entry;
+        }
+        if (att != null)
+          entry.Attachments.Add(att);
+        return entry;
+      },
+      new { ConvId = convId },
+      splitOn: "Id"
+    );
+    return lookup.Values.ToList();
   }
 
-  public async Task<IEnumerable<string>> GetDbChatConversationsAsync(string userId)
+  public Task<IEnumerable<string>> GetDbChatConversations(string userId)
   {
-    return await _dbContext.ChatMessages
-      .Where(m => m.UserId == userId)
-      .Select(m => m.ConvId)
-      .Distinct()
-      .ToListAsync();
+    const string sql = @"
+      SELECT DISTINCT ConvId
+      FROM ChatMessages
+      WHERE UserId = @UserId";
+    return _db.QueryAsync<string>(sql, new { UserId = userId });
   }
 
   public async Task<List<string>> GetDocChunksContentTopKAsync(float[] query, int k)
   {
-    using var cmd = _vectorConn.CreateCommand();
-    cmd.CommandText = @"
+    const string sql = @"
       SELECT c.chunk
         FROM vec_doc_chunks AS v
         JOIN doc_chunks          AS c
           ON v.doc_id = c.id
-       ORDER BY vec_distance_cosine(v.embedding, $q)
-       LIMIT $k;
+       ORDER BY vec_distance_cosine(v.embedding, @q)
+       LIMIT @k;
     ";
-    // pass raw float32 bytes for the vector parameter
-    cmd.Parameters.Add(new SqliteParameter("$q", SqliteType.Blob)
-    {
-      Value = MemoryMarshal.AsBytes<float>(query).ToArray()
-    });
-    cmd.Parameters.AddWithValue("$k", k);
-
-    var results = new List<string>();
-    await using var rdr = await cmd.ExecuteReaderAsync();
-    while (await rdr.ReadAsync())
-      results.Add(rdr.GetString(0));
-    return results;
+    var qBytes = MemoryMarshal.AsBytes<float>(query).ToArray();
+    var rows = await _db.QueryAsync<string>(sql, new { q = qBytes, k });
+    return rows.ToList();
   }
 
   public async Task SetDocChunksAsync(
@@ -85,39 +116,41 @@ public class DbService : IDbService
     string convId,
     string chunk,
     float[] embedding
-  ) {
+  )
+  {
     await _semaphore.WaitAsync();
-    try {
-      using var tx = _vectorConn.BeginTransaction();
+    try
+    {
+      using var tx = _db.BeginTransaction();
 
-      var cmd1 = _vectorConn.CreateCommand();
-      cmd1.CommandText = @"
+      // 1) insert doc_chunks and get new id
+      const string insertDoc = @"
         INSERT INTO doc_chunks(user_id, conv_id, chunk)
-        VALUES($user_id, $conv_id, $chunk);
+        VALUES(@userId, @convId, @chunk);
+        SELECT last_insert_rowid();
       ";
-      cmd1.Parameters.AddWithValue("$user_id", userId);
-      cmd1.Parameters.AddWithValue("$conv_id", convId);
-      cmd1.Parameters.AddWithValue("$chunk", chunk);
-      await cmd1.ExecuteNonQueryAsync();
+      var docId = await _db.ExecuteScalarAsync<long>(
+        insertDoc,
+        new { userId, convId, chunk },
+        tx
+      );
 
-      var lastIdCmd = _vectorConn.CreateCommand();
-      lastIdCmd.CommandText = "SELECT last_insert_rowid();";
-      var docId = await lastIdCmd.ExecuteScalarAsync();
-
-      var cmd2 = _vectorConn.CreateCommand();
-      cmd2.CommandText = @"
+      // 2) upsert into vec_doc_chunks
+      const string upsertVec = @"
         INSERT OR REPLACE INTO vec_doc_chunks(doc_id, embedding)
-        VALUES($doc_id, $vec);
+        VALUES(@docId, @vec);
       ";
-      cmd2.Parameters.AddWithValue("$doc_id", docId);
-      cmd2.Parameters.Add(new SqliteParameter("$vec", SqliteType.Blob) {
-        Value = MemoryMarshal.AsBytes<float>(embedding).ToArray()
-      });
-      await cmd2.ExecuteNonQueryAsync();
+      var vecBytes = MemoryMarshal.AsBytes<float>(embedding).ToArray();
+      await _db.ExecuteAsync(
+        upsertVec,
+        new { docId, vec = vecBytes },
+        tx
+      );
 
-      await tx.CommitAsync();
+      tx.Commit();
     }
-    finally {
+    finally
+    {
       _semaphore.Release();
     }
   }
