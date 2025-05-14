@@ -181,8 +181,8 @@ public class Program
       {
         var chatSvc = scope.ServiceProvider.GetRequiredService<IChatService>();
 
-        var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "Services/Db/seed.json"));
-        var seeds = JsonSerializer.Deserialize<List<ChatMessageSeed>>(seedJson,
+        var seedJson = File.ReadAllText(Path.Combine(app.Environment.ContentRootPath, "seed.json"));
+        var seeds = JsonSerializer.Deserialize<List<ChatMessagesSeed>>(seedJson,
           new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
         );
 

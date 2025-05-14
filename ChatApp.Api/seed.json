@@ -2,7 +2,8 @@
   {
     "Id": "M1a2B3c4D5e6F7g8H9i0J",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "A1b2C3d4E5f6G7h8I9j0K",
+    "SenderId": "A1b2C3d4E5f6G7h8I9j0K",
+    "ReceiverId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Hey, I'm thinking of upgrading my phone. I'm torn between the iPhone 15 Pro, Samsung Galaxy S24, or the Pixel 8. What do you think?",
     "Timestamp": "2025-05-09T11:30:00+10:00",
     "Attachments": []
@@ -10,7 +11,8 @@
   {
     "Id": "M2b3C4d5E6f7G8h9I0j1K",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "B1c2D3e4F5g6H7i8J9k0L",
+    "SenderId": "B1c2D3e4F5g6H7i8J9k0L",
+    "ReceiverId": "A1b2C3d4E5f6G7h8I9j0K",
     "Content": "What will you primarily use the new phone for? Gaming, photography, battery endurance, or something else?",
     "Timestamp": "2025-05-09T11:31:00+10:00",
     "Attachments": []
@@ -18,7 +20,8 @@
   {
     "Id": "M3c4D5e6F7g8H9i0J1k2L",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "A1b2C3d4E5f6G7h8I9j0K",
+    "SenderId": "A1b2C3d4E5f6G7h8I9j0K",
+    "ReceiverId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Mostly for taking photos, I prefer the convenient form factor. It has to have a lot of battery capacity too. I attached the comparison chart for specs.",
     "Timestamp": "2025-05-09T11:33:00+10:00",
     "Attachments": [
@@ -28,7 +31,8 @@
   {
     "Id": "M4d5E6f7G8h9I0j1K2l3M",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "B1c2D3e4F5g6H7i8J9k0L",
+    "SenderId": "B1c2D3e4F5g6H7i8J9k0L",
+    "ReceiverId": "A1b2C3d4E5f6G7h8I9j0K",
     "Content": "It looks like Pixel 8 has the largest battery at 4575 mAh. Screen sizes are all around 6.2″ except the iPhone at 6.1″. Which metric matters the most for you?",
     "Timestamp": "2025-05-09T11:35:00+10:00",
     "Attachments": []
@@ -36,7 +40,8 @@
   {
     "Id": "M5e6F7g8H9i0J1k2L3m4N",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "A1b2C3d4E5f6G7h8I9j0K",
+    "SenderId": "A1b2C3d4E5f6G7h8I9j0K",
+    "ReceiverId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Here are the sample photos comparing the three.",
     "Timestamp": "2025-05-09T11:36:00+10:00",
     "Attachments": [
@@ -47,7 +52,8 @@
   {
     "Id": "M8h9I0j1K2l3M4n5O6p7Q",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "B1c2D3e4F5g6H7i8J9k0L",
+    "SenderId": "B1c2D3e4F5g6H7i8J9k0L",
+    "ReceiverId": "A1b2C3d4E5f6G7h8I9j0K",
     "Content": "The Pixel 8 photos honestly look pretty good, although the iPhone 15 Pro seems to have better dynamic range at night. The Galaxy S24 seems to overexpose in low light.",
     "Timestamp": "2025-05-09T11:40:00+10:00",
     "Attachments": []
@@ -55,7 +61,8 @@
   {
     "Id": "M8h9I0h3V2l3M4a5O6p7Q",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "B1c2D3e4F5g6H7i8J9k0L",
+    "SenderId": "B1c2D3e4F5g6H7i8J9k0L",
+    "ReceiverId": "A1b2C3d4E5f6G7h8I9j0K",
     "Content": "Do you plan to take a lot of videos on your phone?",
     "Timestamp": "2025-05-09T11:41:00+10:00",
     "Attachments": []
@@ -63,7 +70,8 @@
   {
     "Id": "M7g8H9i0J1k2L3m4N5o6P",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "A1b2C3d4E5f6G7h8I9j0K",
+    "SenderId": "A1b2C3d4E5f6G7h8I9j0K",
+    "ReceiverId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Yes, I do. I love capturing moments on video, especially when traveling.",
     "Timestamp": "2025-05-09T11:42:00+10:00",
     "Attachments": []
@@ -71,7 +79,8 @@
   {
     "Id": "M9i0J1k2L3m4N5o6P7q8R",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "B1c2D3e4F5g6H7i8J9k0L",
+    "SenderId": "B1c2D3e4F5g6H7i8J9k0L",
+    "ReceiverId": "A1b2C3d4E5f6G7h8I9j0K",
     "Content": "Based on my experience, iPhones stabilize videos really well. I'm not sure about Pixel 8 and Galaxy S24. The pro models are expensive, though, especially if you upgrade to the higher storage options, which you might need if you take a lot of videos. You might as well get a dedicated camera.",
     "Timestamp": "2025-05-09T11:44:00+10:00",
     "Attachments": []
@@ -79,7 +88,8 @@
   {
     "Id": "M0J1k2L3m4N5o6P7q8R9S",
     "ConvId": "XyZ123abcDEF456ghiJKL",
-    "UserId": "A1b2C3d4E5f6G7h8I9j0K",
+    "SenderId": "A1b2C3d4E5f6G7h8I9j0K",
+    "ReceiverId": "B1c2D3e4F5g6H7i8J9k0L",
     "Content": "Yeah, price is a big factor for me. I don't want to spend too much, but I also want a phone that will last me a while.",
     "Timestamp": "2025-05-09T11:45:00+10:00",
     "Attachments": []
