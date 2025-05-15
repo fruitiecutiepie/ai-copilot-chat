@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { HttpTransportType, HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 
 import ChatWindow from "@/components/ChatWindow";
 import { ChatMessage, ChatMessageSchema } from "@/types";
-import { res, resAsync } from "@/common/res";
-import { nanoid } from "nanoid";
+import { z } from "zod";
+import { useSignalRConnection } from "@/hooks/useSignalRConnection";
 
 export const SERVER_DOMAIN = "localhost:5000";
 
@@ -23,9 +22,6 @@ export default function Home() {
 
   const inputRefChat = useRef<HTMLInputElement>(null);
   const inputRefLlm = useRef<HTMLInputElement>(null);
-
-  const connRefChat = useRef<HubConnection>(null);
-  const connRefLlm = useRef<HubConnection>(null);
 
   const [showSpacer, setShowSpacer] = useState(false);
   useEffect(() => {
@@ -59,51 +55,28 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
+  const connLlm = useSignalRConnection(
+    `http://${SERVER_DOMAIN}/hubs/llm`
+  );
+
+  // register stream handler
   useEffect(() => {
-    const connRes = res(() => new HubConnectionBuilder()
-      .withUrl(`http://${SERVER_DOMAIN}/hubs/chat?convId=${CONV_ID}`, {
-        transport: HttpTransportType.WebSockets,
-        skipNegotiation: true
-      })
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Information)
-      .build()
-    );
-    if (!connRes.is_ok) {
-      console.error("connRes error: ", connRes.err);
-      return;
-    }
-    const conn = connRes.ok;
+    if (!connLlm) return;
+    const onStream = (chunk: string) => setLlmStream(prev => prev + chunk);
+    connLlm.on("LlmRecvMessageStream", onStream);
+    return () => { connLlm.off("LlmRecvMessageStream", onStream) };
+  }, [connLlm]);
 
-    let mounted = true;
-    (async () => {
-      const connRes = await resAsync(() => conn.start());
-      if (!connRes.is_ok) {
-        console.error("Connection error: ", connRes.err);
-        return;
-      }
-      if (!mounted) return;
-
-      connRefChat.current = conn;
-      console.log("Connected to SignalR conn Chat");
-
-      conn.on("ChatRecvMessage", (msg: ChatMessage) => {
-        console.log("ChatRecvMessage", JSON.stringify(msg, null, 2));
-        if (!mounted) return;
-        setMessages((prev) => [...prev, msg]);
-      });
-    })();
-
-    return (() => {
-      mounted = false;
-      connRefChat.current = null;
-      // remove handlers and stop the connection
-      conn.off("ChatRecvMessage");
-      conn.stop().catch((err) => {
-        console.error("Error stopping connection: ", err);
-      });
-    });
-  }, []);
+  // register final‐message handler
+  useEffect(() => {
+    if (!connLlm) return;
+    const onFull = (full: ChatMessage) => {
+      setMessagesLlm(prev => [...prev, full]);
+      setLlmStream("");
+    };
+    connLlm.on("LlmRecvMessage", onFull);
+    return () => { connLlm.off("LlmRecvMessage", onFull) };
+  }, [connLlm]);
 
   const sendChat = async () => {
     if (!inputRefChat.current) return;
@@ -147,75 +120,6 @@ export default function Home() {
     inputRefChat.current.value = "";
     setSelectedFilesChat([]);
   };
-
-  useEffect(() => {
-    const connRes = res(() => new HubConnectionBuilder()
-      .withUrl(`http://${SERVER_DOMAIN}/hubs/llm`, {
-        transport: HttpTransportType.WebSockets,
-        skipNegotiation: true
-      })
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Information)
-      .build()
-    );
-    if (!connRes.is_ok) {
-      console.error("connRes error: ", connRes.err);
-      return;
-    }
-    const conn = connRes.ok;
-
-    let mounted = false;
-
-    const init = async () => {
-      const connRes = await resAsync(() => conn.start());
-      if (!connRes.is_ok) {
-        console.error("Connection error: ", connRes.err);
-        return;
-      }
-      if (mounted) return;
-
-      connRefLlm.current = conn;
-      console.log("Connected to SignalR conn LLM");
-
-      conn.on("LlmRecvMessage", (chunk: string) =>
-        setMessagesLlm(prev => {
-          // first chunk or starting a new response?
-          const last = prev[prev.length - 1];
-          if (!last || last.userId !== AI_USER_ID) {
-            // create a brand-new ChatMessage
-            const newMsg: ChatMessage = {
-              id: nanoid(),
-              userId: AI_USER_ID,
-              convId: CONV_ID,
-              content: chunk,
-              timestamp: new Date().toISOString(),
-              attachments: []
-            };
-            return [...prev, newMsg];
-          } else {
-            // append chunk to last message
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              ...last,
-              content: last.content + chunk
-            };
-            return updated;
-          }
-        })
-      );
-    }
-    init();
-
-    return (() => {
-      mounted = true;
-      connRefLlm.current = null;
-      // remove handlers and stop the connection
-      conn.off("LlmRecvMessage");
-      conn.stop().catch((err) => {
-        console.error("Error stopping connection: ", err);
-      });
-    });
-  }, []);
 
   const sendChatLlm = async () => {
     if (!inputRefLlm.current) return;
