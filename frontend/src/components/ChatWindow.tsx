@@ -73,7 +73,7 @@ export default function ChatWindow(
                   return (
                     <button
                       key={i}
-                      onClick={() => handleDownload(url, true)}
+                      onClick={() => handleDownload(atch.fileName, true)}
                       className="block text-blue-600 underline mt-1"
                     >
                       {`Download ${atch.fileName}`}
@@ -97,7 +97,7 @@ export default function ChatWindow(
                   return (
                     <button
                       key={i}
-                      onClick={() => handleDownload(url)}
+                      onClick={() => handleDownload(atch.fileName)}
                       className="block text-blue-600 underline mt-1"
                     >
                       {`Download ${atch.fileName}`}
@@ -108,7 +108,7 @@ export default function ChatWindow(
                 return (
                   <button
                     key={i}
-                    onClick={() => handleDownload(url)}
+                    onClick={() => handleDownload(atch.fileName)}
                     className="block text-blue-600 underline mt-1"
                   >
                     {`Download ${atch.fileName}`}
