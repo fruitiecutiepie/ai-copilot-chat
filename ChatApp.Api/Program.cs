@@ -60,7 +60,7 @@ public class Program
       // vector‐db tables
       conn.Execute(@"
         CREATE TABLE IF NOT EXISTS doc_chunks(
-          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          id         INTEGER PRIMARY KEY,
           sender_id  TEXT    NOT NULL,
           conv_id    TEXT    NOT NULL,
           chunk      TEXT    NOT NULL
@@ -69,7 +69,7 @@ public class Program
       conn.Execute(@"
         CREATE VIRTUAL TABLE IF NOT EXISTS vec_doc_chunks
         USING vec0(
-          doc_id     INTEGER PRIMARY KEY,
+          doc_id     INTEGER PRIMARY KEY REFERENCES doc_chunks(id) ON DELETE CASCADE,
           embedding  FLOAT[1536]  distance_metric=cosine
         );
       ");
