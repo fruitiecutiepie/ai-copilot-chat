@@ -3,6 +3,12 @@ using ChatApp.Api.Ports;
 
 namespace ChatApp.Api.Services.Chat;
 
+public class ChatMessageSplit
+{
+  public List<ChatMessage> ChatMessageHumanHuman { get; set; } = new();
+  public List<ChatMessage> ChatMessageHumanAi { get; set; } = new();
+}
+
 public class ChatService : IChatService
 {
   // In real-world, auth requests with JWT tokens and get userId from token
@@ -24,13 +30,32 @@ public class ChatService : IChatService
 
   public async Task<ChatMessageSplit> GetChatMessagesAsync(
     string convId
-  ) => _db.GetDbChatMessagesAsync(convId);
+  ) {
+    var all = await _db.GetDbChatMessagesAsync(convId);
+    var humanHumanMessages = all.Where(m =>
+      (m.SenderId == SENDER_ID && m.ReceiverId != "assistant")
+      || (m.SenderId != "assistant" && m.ReceiverId == SENDER_ID)
+    );
+    var humanAiMessages = all.Where(m =>
+      (m.SenderId == SENDER_ID && m.ReceiverId == "assistant")
+      || (m.SenderId == "assistant" && m.ReceiverId == SENDER_ID)
+    );
+
+    return new ChatMessageSplit
+    {
+      ChatMessageHumanHuman = humanHumanMessages.ToList(),
+      ChatMessageHumanAi = humanAiMessages.ToList()
+    };
+  }
 
   public async Task<ChatMessage> SetChatMessageAsync(
     ChatMessage msg
   ) {
-    await _db.SetDbChatMessages(new[] { msg });
-    // await _hub.Clients.Group(msg.ConvId).SendAsync("ChatRecvMessage", msg);
+    await _db.SetDbChatMessagesWithAttachments(new[] { msg });
+    if (msg.ReceiverId == "assistant" || msg.SenderId == "assistant")
+    {
+      return msg;
+    }
 
     var textEmbeddings = await _llm.GetEmbeddingAsync(
       Llm.EmbeddingInputType.Text,
@@ -45,15 +70,17 @@ public class ChatService : IChatService
       );
 
     // embed & store chunks for each attachment
-    foreach (var a in msg.Attachments) {
-      var type = a.FileType switch {
-        ChatMessageAttachment.AttachmentType.Pdf   => Llm.EmbeddingInputType.Pdf,
+    foreach (var a in msg.Attachments)
+    {
+      var type = a.FileType switch
+      {
+        ChatMessageAttachment.AttachmentType.Pdf => Llm.EmbeddingInputType.Pdf,
         ChatMessageAttachment.AttachmentType.Image => Llm.EmbeddingInputType.Image,
         _ => Llm.EmbeddingInputType.Text
       };
       var path = a.FileType == ChatMessageAttachment.AttachmentType.Text
         ? a.FilePath
-        : Fs.FsService.FileNameToLocalPath(msg.ConvId, a.FilePath);
+        : Path.Combine("UserData/uploads", msg.ConvId, a.FilePath).Replace("\\", "/");
 
       var attEmbeddings = await _llm.GetEmbeddingAsync(type, path);
       foreach (var r in attEmbeddings)
@@ -64,6 +91,7 @@ public class ChatService : IChatService
           r.Embedding
         );
     }
+    // await _hub.Clients.Group(msg.ConvId).SendAsync("ChatRecvMessage", msg);
 
     return msg;
   }
