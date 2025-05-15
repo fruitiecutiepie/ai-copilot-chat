@@ -179,7 +179,7 @@ public class Program
     }
 
     app.MapControllers();
-    app.MapHub<ChatHub>("/hubs/chat");
+    // app.MapHub<ChatHub>("/hubs/chat");
     app.MapHub<LlmHub>("/hubs/llm");
 
     // Auto-migrate

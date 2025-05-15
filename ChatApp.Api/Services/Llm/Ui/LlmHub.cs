@@ -34,10 +34,10 @@ public class LlmHub : Hub
     string content
   ) {
     var sb = new StringBuilder();
-    await foreach (var chunk in _llm.StreamCompletionAsync(convId, userId, content))
+    await foreach (var chunk in _llm.GetCompletionStreamAsync(convId, senderId, content))
     {
       sb.Append(chunk);
-      await Clients.Caller.SendAsync("LlmRecvMessage", chunk);
+      await Clients.Caller.SendAsync("LlmRecvMessageStream", chunk);
     }
 
     var msg = new ChatMessage
@@ -50,6 +50,7 @@ public class LlmHub : Hub
       Timestamp = DateTime.UtcNow,
       Attachments = new List<ChatMessageAttachment>()
     };
-    await _db.SetDbChatMessagesAsync(new[] { msg });
+    await _db.SetDbChatMessagesWithAttachments(new[] { msg });
+    await Clients.Caller.SendAsync("LlmRecvMessage", msg);
   }
 }
