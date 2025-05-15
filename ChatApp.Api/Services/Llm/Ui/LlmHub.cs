@@ -29,7 +29,7 @@ public class LlmHub : Hub
   }
 
   public async Task LlmSendMessage(
-    string userId,
+    string senderId,
     string convId,
     string content
   ) {
@@ -42,11 +42,12 @@ public class LlmHub : Hub
 
     var msg = new ChatMessage
     {
-      Id          = NanoidDotNet.Nanoid.Generate(),
-      UserId      = "AI_ASSISTANT",
-      ConvId      = convId,
-      Content     = sb.ToString(),
-      Timestamp   = DateTime.UtcNow,
+      Id = NanoidDotNet.Nanoid.Generate(),
+      ConvId = convId,
+      SenderId = "assistant",
+      ReceiverId = senderId,
+      Content = sb.ToString(),
+      Timestamp = DateTime.UtcNow,
       Attachments = new List<ChatMessageAttachment>()
     };
     await _db.SetDbChatMessagesAsync(new[] { msg });

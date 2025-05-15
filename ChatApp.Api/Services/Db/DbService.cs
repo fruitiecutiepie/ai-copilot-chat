@@ -3,14 +3,14 @@ using System.Runtime.InteropServices;
 using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
 using Dapper;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Api.Services.Db;
 
-public class ChatMessageSeed
+public class ChatMessagesSeed
 {
   public required string Id { get; set; }
-  public required string UserId { get; set; }
+  public required string SenderId { get; set; }
+  public required string ReceiverId { get; set; }
   public required string ConvId { get; set; }
   public required string Content { get; set; }
   public required DateTime Timestamp { get; set; }
@@ -24,48 +24,23 @@ public class DbService : IDbService
 
   public DbService(
     IDbConnection dbContext
-  )
-  {
+  ) {
     _db = dbContext;
-  }
-
-  public Task SetDbChatMessages(
-    IEnumerable<ChatMessage> messages
-  )
-  {
-    const string sql = @"
-      INSERT OR IGNORE INTO ChatMessages
-        (Id, Content, ConvId, Timestamp, UserId)
-      VALUES
-        (@Id, @Content, @ConvId, @Timestamp, @UserId)";
-    return _db.ExecuteAsync(sql, messages);
-  }
-
-  public Task SetDbChatMessageAttachments(
-    IEnumerable<ChatMessageAttachment> attachments
-  )
-  {
-    const string sql = @"
-      INSERT OR IGNORE INTO ChatMessageAttachments
-        (Id, FilePath, MessageId, FileName, FileType)
-      VALUES
-        (@Id, @FilePath, @MessageId, @FileName, @FileType)";
-    return _db.ExecuteAsync(sql, attachments);
   }
 
   public async Task<IReadOnlyList<ChatMessage>> GetDbChatMessagesAsync(
     string convId
-  )
-  {
+  ) {
     const string sql = @"
       SELECT
-        m.Id, m.Content, m.ConvId, m.Timestamp, m.UserId,
+        m.Id, m.ConvId, m.SenderId, m.ReceiverId, m.Content, m.Timestamp,
         a.Id, a.FilePath, a.MessageId, a.FileName, a.FileType
       FROM ChatMessages m
       LEFT JOIN ChatMessageAttachments a
         ON a.MessageId = m.Id
-      WHERE m.ConvId = @ConvId
-      ORDER BY m.Timestamp";
+      WHERE m.ConvId = @convId
+      ORDER BY m.Timestamp
+    ";
     var lookup = new Dictionary<string, ChatMessage>();
     await _db.QueryAsync<ChatMessage, ChatMessageAttachment, ChatMessage>(
       sql,
@@ -81,19 +56,36 @@ public class DbService : IDbService
           entry.Attachments.Add(att);
         return entry;
       },
-      new { ConvId = convId },
+      new { convId },
       splitOn: "Id"
     );
     return lookup.Values.ToList();
   }
 
-  public Task<IEnumerable<string>> GetDbChatConversations(string userId)
+  public async Task SetDbChatMessagesWithAttachments(IEnumerable<ChatMessage> messages)
   {
-    const string sql = @"
-      SELECT DISTINCT ConvId
-      FROM ChatMessages
-      WHERE UserId = @UserId";
-    return _db.QueryAsync<string>(sql, new { UserId = userId });
+    const string msgSql = @"
+      INSERT OR REPLACE INTO ChatMessages
+        (Id, ConvId, SenderId, ReceiverId, Content, Timestamp)
+      VALUES
+        (@Id, @ConvId, @SenderId, @ReceiverId, @Content, @Timestamp);
+    ";
+    const string attSql = @"
+      INSERT OR REPLACE INTO ChatMessageAttachments
+        (Id, FilePath, MessageId, FileName, FileType)
+      VALUES
+        (@Id, @FilePath, @MessageId, @FileName, @FileType);
+    ";
+
+    using var tx = _db.BeginTransaction();
+    foreach (var msg in messages)
+    {
+      await _db.ExecuteAsync(msgSql, new[] { msg }, tx);
+
+      if (msg.Attachments?.Count > 0)
+        await _db.ExecuteAsync(attSql, msg.Attachments, tx);
+    }
+    tx.Commit();
   }
 
   public async Task<List<string>> GetDocChunksContentTopKAsync(float[] query, int k)
@@ -101,7 +93,7 @@ public class DbService : IDbService
     const string sql = @"
       SELECT c.chunk
         FROM vec_doc_chunks AS v
-        JOIN doc_chunks          AS c
+        JOIN doc_chunks     AS c
           ON v.doc_id = c.id
        ORDER BY vec_distance_cosine(v.embedding, @q)
        LIMIT @k;
@@ -112,30 +104,32 @@ public class DbService : IDbService
   }
 
   public async Task SetDocChunksAsync(
-    string userId,
+    string senderId,
     string convId,
     string chunk,
     float[] embedding
-  )
-  {
+  ) {
     await _semaphore.WaitAsync();
     try
     {
       using var tx = _db.BeginTransaction();
 
-      // 1) insert doc_chunks and get new id
+      string stringId = NanoidDotNet.Nanoid.Generate(alphabet: "0123456789", size: 9);
+      if (!int.TryParse(stringId, out var id))
+        throw new InvalidOperationException(
+          $"Cannot convert NanoID '{stringId}' to Int32."
+        );
+
       const string insertDoc = @"
-        INSERT INTO doc_chunks(user_id, conv_id, chunk)
-        VALUES(@userId, @convId, @chunk);
-        SELECT last_insert_rowid();
+        INSERT OR REPLACE INTO doc_chunks(id, sender_id, conv_id, chunk)
+        VALUES(@id, @senderId, @convId, @chunk);
       ";
-      var docId = await _db.ExecuteScalarAsync<long>(
+      await _db.ExecuteAsync(
         insertDoc,
-        new { userId, convId, chunk },
+        new { id, senderId, convId, chunk },
         tx
       );
 
-      // 2) upsert into vec_doc_chunks
       const string upsertVec = @"
         INSERT OR REPLACE INTO vec_doc_chunks(doc_id, embedding)
         VALUES(@docId, @vec);
@@ -143,7 +137,7 @@ public class DbService : IDbService
       var vecBytes = MemoryMarshal.AsBytes<float>(embedding).ToArray();
       await _db.ExecuteAsync(
         upsertVec,
-        new { docId, vec = vecBytes },
+        new { docId = id, vec = vecBytes },
         tx
       );
 

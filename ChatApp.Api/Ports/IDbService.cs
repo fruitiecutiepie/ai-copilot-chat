@@ -10,5 +10,5 @@ public interface IDbService
   Task<IEnumerable<string>> GetDbChatConversations(string userId);
 
   Task<List<string>> GetDocChunksContentTopKAsync(float[] query, int k);
-  Task SetDocChunksAsync(string userId, string convId, string chunk, float[] embedding);
+  Task SetDocChunksAsync(string senderId, string convId, string chunk, float[] embedding);
 }

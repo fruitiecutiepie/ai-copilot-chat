@@ -26,7 +26,6 @@ public record EmbeddingResult(string Chunk, float[] Embedding);
 public class LlmService : ILlmService
 {
   readonly IDbService _db;
-  // readonly IFsService _fs;
 
   private readonly ChatClient _clientOpenAi;
   private readonly HttpClient _httpCohere;
@@ -36,15 +35,13 @@ public class LlmService : ILlmService
 
   public LlmService(
     IDbService db,
-    // IFsService fs,
 
     ChatClient chatClientOpenAi,
     IHttpClientFactory httpFactory
-  // IMemoryCache cache
+    // IMemoryCache cache
   )
   {
     _db = db;
-    // _fs = fs;
 
     _clientOpenAi = chatClientOpenAi;
     _httpCohere = httpFactory.CreateClient("Cohere");
@@ -52,14 +49,14 @@ public class LlmService : ILlmService
     // _cache = cache;
   }
 
-  public async IAsyncEnumerable<string> StreamCompletionAsync(
+  public async IAsyncEnumerable<string> GetCompletionStreamAsync(
     string convId,
-    string userId,
+    string senderId,
     string content
   )
   {
     // assemble system + RAG multimodal + history summary
-    var messages = await GetPromptMessagesAsync(convId, userId, content);
+    var messages = await GetPromptMessagesAsync(convId, senderId, content);
 
     var messagesJson = JsonSerializer.Serialize(messages);
     Console.WriteLine($"Prompt messages: {(messagesJson.Length > 500 ? messagesJson.Substring(0, 500) + "..." : messagesJson)}");
@@ -74,7 +71,7 @@ public class LlmService : ILlmService
 
   public async Task<List<OpenAI.Chat.ChatMessage>> GetPromptMessagesAsync(
     string convId,
-    string userId,
+    string senderId,
     string content
   )
   {
@@ -127,8 +124,10 @@ public class LlmService : ILlmService
     return msgs;
   }
 
-  public async Task<List<EmbeddingResult>> GetEmbeddingAsync(EmbeddingInputType type, string source)
-  {
+  public async Task<List<EmbeddingResult>> GetEmbeddingAsync(
+    EmbeddingInputType type,
+    string source // e.g. text or file path
+  ) {
     string[] chunkSources;
     object[] inputs;
 
@@ -169,7 +168,7 @@ public class LlmService : ILlmService
           inputs = chunkSources.Select(chunk => new
           {
             content = new object[] {
-            // new { type = "text", text = _fs.FileNameToPublicUrl(source) },
+            new { type = "text", text = source },
             new {
               type = "image_url",
               image_url = new { url = $"data:image/{ext};base64,{chunk}" }
@@ -198,10 +197,9 @@ public class LlmService : ILlmService
         }).ToArray();
         chunkSources = pageDataUris;
 
-        // string pdfUrl = _fs.FileNameToPublicUrl(source);
         inputs = pageDataUris.Select(dataUri => new {
           content = new object[] {
-            // new { type = "text", text = pdfUrl },
+            new { type = "text", text = source },
             new { type = "image_url", image_url = new { url = dataUri } }
           }
         }).ToArray();

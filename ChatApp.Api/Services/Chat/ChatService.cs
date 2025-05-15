@@ -1,12 +1,13 @@
 using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
-using ChatApp.Api.Services.Chat.Ui;
-using Microsoft.AspNetCore.SignalR;
 
 namespace ChatApp.Api.Services.Chat;
 
 public class ChatService : IChatService
 {
+  // In real-world, auth requests with JWT tokens and get userId from token
+  private const string SENDER_ID = "A1b2C3d4E5f6G7h8I9j0K";
+
   // private readonly IHubContext<ChatHub> _hub;
   private readonly IDbService _db;
   private readonly ILlmService _llm;
@@ -21,7 +22,7 @@ public class ChatService : IChatService
     _llm = llm;
   }
 
-  public Task<IReadOnlyList<ChatMessage>> GetChatMessagesAsync(
+  public async Task<ChatMessageSplit> GetChatMessagesAsync(
     string convId
   ) => _db.GetDbChatMessagesAsync(convId);
 
@@ -37,7 +38,7 @@ public class ChatService : IChatService
     );
     foreach (var r in textEmbeddings)
       await _db.SetDocChunksAsync(
-        msg.UserId,
+        msg.SenderId,
         msg.ConvId,
         r.Chunk,
         r.Embedding
@@ -57,7 +58,7 @@ public class ChatService : IChatService
       var attEmbeddings = await _llm.GetEmbeddingAsync(type, path);
       foreach (var r in attEmbeddings)
         await _db.SetDocChunksAsync(
-          msg.UserId,
+          msg.SenderId,
           msg.ConvId,
           r.Chunk,
           r.Embedding

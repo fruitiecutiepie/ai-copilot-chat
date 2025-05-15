@@ -4,14 +4,14 @@ namespace ChatApp.Api.Ports;
 
 public interface ILlmService
 {
-  IAsyncEnumerable<string> StreamCompletionAsync(
+  IAsyncEnumerable<string> GetCompletionStreamAsync(
     string convId,
-    string userId,
+    string senderId,
     string content
   );
   Task<List<OpenAI.Chat.ChatMessage>> GetPromptMessagesAsync(
     string convId,
-    string userId,
+    string senderId,
     string content
   );
   Task<List<EmbeddingResult>> GetEmbeddingAsync(EmbeddingInputType type, string source);

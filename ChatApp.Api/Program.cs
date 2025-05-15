@@ -8,7 +8,6 @@ using OpenAI.Chat;
 using ChatApp.Api.Services.Chat;
 using ChatApp.Api.Services.Llm;
 using ChatApp.Api.Ports;
-using ChatApp.Api.Services.Chat.Ui;
 using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
 using ChatApp.Api.Services.Fs;
@@ -61,10 +60,10 @@ public class Program
       // vector‐db tables
       conn.Execute(@"
         CREATE TABLE IF NOT EXISTS doc_chunks(
-          id       INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id  TEXT    NOT NULL,
-          conv_id  TEXT    NOT NULL,
-          chunk    TEXT    NOT NULL
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          sender_id  TEXT    NOT NULL,
+          conv_id    TEXT    NOT NULL,
+          chunk      TEXT    NOT NULL
         );
       ");
       conn.Execute(@"
@@ -78,12 +77,26 @@ public class Program
       // ChatMessages table
       conn.Execute(@"
         CREATE TABLE IF NOT EXISTS ChatMessages (
-          Id        TEXT    PRIMARY KEY,
-          Content   TEXT    NOT NULL,
-          ConvId    TEXT    NOT NULL,
-          Timestamp TEXT    NOT NULL,
-          UserId    TEXT    NOT NULL
+          Id         TEXT    PRIMARY KEY,
+          ConvId     TEXT    NOT NULL,
+          SenderId   TEXT    NOT NULL,
+          ReceiverId TEXT    NOT NULL,
+          Content    TEXT,
+          Timestamp  TEXT    NOT NULL
         );
+      ");
+      // index for all queries by conv, role, user, time
+      conn.Execute(@"
+        CREATE INDEX IF NOT EXISTS
+          IX_ChatMessages_ConvRoleUserTime
+        ON ChatMessages(ConvId, SenderId, ReceiverId, Timestamp);
+      ");
+
+      // conv / timestamp index for any full-stream scan
+      conn.Execute(@"
+        CREATE INDEX IF NOT EXISTS
+          IX_ChatMessages_ConvTime
+        ON ChatMessages(ConvId, Timestamp);
       ");
 
       // ChatMessageAttachments table
@@ -118,7 +131,8 @@ public class Program
     builder.Services.AddSingleton(sp => {
       var opts = sp.GetRequiredService<IOptions<AppSettings>>().Value;
       return new ChatClient(
-        model: opts.OpenAI.Model, // "gpt-4.1-mini-2025-04-14" (https://platform.openai.com/docs/models/gpt-4.1-mini)
+        // https://platform.openai.com/docs/models/gpt-4.1-mini
+        model: opts.OpenAI.Model, // "gpt-4.1-mini-2025-04-14"
         apiKey: opts.OpenAI.ApiKey
       );
     });
@@ -194,7 +208,8 @@ public class Program
             var msg = new Models.ChatMessage
             {
               Id = s.Id,
-              UserId = s.UserId,
+              SenderId = s.SenderId,
+              ReceiverId = s.ReceiverId,
               ConvId = s.ConvId,
               Content = s.Content,
               Timestamp = s.Timestamp,
