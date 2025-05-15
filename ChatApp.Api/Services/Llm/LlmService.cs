@@ -11,6 +11,9 @@ using ChatApp.Api.Ports;
 using OpenAI.Chat;
 using System.Runtime.Versioning;
 
+using UglyToad.PdfPig;
+using System.Net.Http.Json;
+
 namespace ChatApp.Api.Services.Llm;
 
 public enum EmbeddingInputType
@@ -84,7 +87,7 @@ public class LlmService : ILlmService
     var embeddingResults = await GetEmbeddingAsync(EmbeddingInputType.Query, content);
 
     var top = embeddingResults.First();
-    var queryChunk  = top.Chunk;
+    var queryChunk = top.Chunk;
     var queryVector = top.Embedding;
 
     var docs = await _db.GetDocChunksContentTopKAsync(queryVector, 5);
@@ -178,6 +181,15 @@ public class LlmService : ILlmService
           break;
         }
       case EmbeddingInputType.Pdf:
+        // var fullText = ExtractPdfText(source);
+        // var chunks   = SplitIntoChunks(fullText, maxChars: 1024, overlap: 256).ToArray();
+        // chunkSources = chunks.ToArray();
+        // inputs = chunks.Select(chunk => new {
+        //   content = new object[] {
+        //     new { type = "text", text = chunk }
+        //   }
+        // }).ToArray();
+
         // Read PDF and get SKBitmap[] for each page
         byte[] pdfBytes = File.ReadAllBytes(source);
         string pdfBase64 = Convert.ToBase64String(pdfBytes);
@@ -197,7 +209,8 @@ public class LlmService : ILlmService
         }).ToArray();
         chunkSources = pageDataUris;
 
-        inputs = pageDataUris.Select(dataUri => new {
+        inputs = pageDataUris.Select(dataUri => new
+        {
           content = new object[] {
             new { type = "text", text = source },
             new { type = "image_url", image_url = new { url = dataUri } }
@@ -216,7 +229,7 @@ public class LlmService : ILlmService
         ? "search_query"
         : "search_document",
       embedding_types = new[] { "float" },
-      inputs
+      inputs = inputs,
     };
 
     var resp = await _httpCohere.PostAsJsonAsync(
@@ -296,7 +309,7 @@ public class LlmService : ILlmService
     }
 
     byte[] jpegData;
-    using (var img  = SKImage.FromBitmap(resized))
+    using (var img = SKImage.FromBitmap(resized))
     using (var data = img.Encode(SKEncodedImageFormat.Jpeg, quality))
       jpegData = data.ToArray();
 
@@ -313,6 +326,24 @@ public class LlmService : ILlmService
   {
     var b64 = Convert.ToBase64String(bytes);
     return $"data:{mimeType};base64,{b64}";
+  }
+
+  string ExtractPdfText(string path)
+  {
+    using var doc = PdfDocument.Open(path);
+    var pages = doc.GetPages()
+      .Select(p => p.Text)
+      .Where(t => !string.IsNullOrWhiteSpace(t));
+    return string.Join("\n\n", pages);
+  }
+  
+  IEnumerable<string> SplitIntoChunks(string text, int maxChars = 1000, int overlap = 200)
+  {
+    for (int start = 0; start < text.Length; start += maxChars - overlap)
+    {
+      int len = Math.Min(maxChars, text.Length - start);
+      yield return text.Substring(start, len);
+    }
   }
 
   // private static IEnumerable<string> ChunkText(string text, int chunkSize = 500, int overlap = 50)
