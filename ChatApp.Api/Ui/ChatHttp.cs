@@ -2,7 +2,7 @@ using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ChatApp.Api.Services.Chat.Ui;
+namespace ChatApp.Api.Ui;
 
 [ApiController]
 [Route("api/chat")]

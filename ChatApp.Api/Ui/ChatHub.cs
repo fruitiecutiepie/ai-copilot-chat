@@ -3,14 +3,14 @@ using ChatApp.Api.Models;
 using ChatApp.Api.Ports;
 using Microsoft.AspNetCore.SignalR;
 
-namespace ChatApp.Api.Services.Llm.Ui;
+namespace ChatApp.Api.Ui;
 
-public class LlmHub : Hub
+public class ChatHub : Hub
 {
   private readonly IDbService _db;
   readonly ILlmService _llm;
 
-  public LlmHub(
+  public ChatHub(
     IDbService db,
     ILlmService llm
   ) {

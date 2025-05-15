@@ -61,28 +61,28 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
-  const connLlm = useSignalRConnection(
-    `http://${SERVER_DOMAIN}/hubs/llm`
+  const connChat = useSignalRConnection(
+    `http://${SERVER_DOMAIN}/hubs/chat`
   );
 
   // register stream handler
   useEffect(() => {
-    if (!connLlm) return;
+    if (!connChat) return;
     const onStream = (chunk: string) => setLlmStream(prev => prev + chunk);
-    connLlm.on("LlmRecvMessageStream", onStream);
-    return () => { connLlm.off("LlmRecvMessageStream", onStream) };
-  }, [connLlm]);
+    connChat.on("LlmRecvMessageStream", onStream);
+    return () => { connChat.off("LlmRecvMessageStream", onStream) };
+  }, [connChat]);
 
   // register final‐message handler
   useEffect(() => {
-    if (!connLlm) return;
+    if (!connChat) return;
     const onFull = (full: ChatMessage) => {
       setMessagesLlm(prev => [...prev, full]);
       setLlmStream("");
     };
-    connLlm.on("LlmRecvMessage", onFull);
-    return () => { connLlm.off("LlmRecvMessage", onFull) };
-  }, [connLlm]);
+    connChat.on("LlmRecvMessage", onFull);
+    return () => { connChat.off("LlmRecvMessage", onFull) };
+  }, [connChat]);
 
   const sendChat = async () => {
     if (!inputRefChat.current) return;
@@ -163,7 +163,7 @@ export default function Home() {
       console.error("Upload failed", err);
     }
 
-    await connLlm!.invoke("LlmSendMessage",
+    await connChat!.invoke("LlmSendMessage",
       USER_ID,
       CONV_ID,
       text
@@ -309,7 +309,7 @@ export default function Home() {
                 AI Copilot
               </h1>
             </div>
-            {connLlm ? (
+            {connChat ? (
               <>
                 <div
                   className="flex flex-col h-full space-y-2"

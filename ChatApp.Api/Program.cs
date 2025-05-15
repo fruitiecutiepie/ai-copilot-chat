@@ -4,15 +4,15 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using Dapper;
+using System.Data;
 
 using ChatApp.Api.Services.Chat;
 using ChatApp.Api.Services.Llm;
 using ChatApp.Api.Ports;
-using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
 using ChatApp.Api.Models;
-using Dapper;
-using System.Data;
+using ChatApp.Api.Ui;
 
 namespace ChatApp.Api;
 
@@ -177,8 +177,7 @@ public class Program
     }
 
     app.MapControllers();
-    // app.MapHub<ChatHub>("/hubs/chat");
-    app.MapHub<LlmHub>("/hubs/llm");
+    app.MapHub<ChatHub>("/hubs/chat");
 
     // Auto-migrate
     using (var scope = app.Services.CreateScope())

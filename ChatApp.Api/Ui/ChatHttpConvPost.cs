@@ -1,7 +1,7 @@
 using ChatApp.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ChatApp.Api.Services.Chat.Ui;
+namespace ChatApp.Api.Ui;
 
 public partial class ChatController
 {
