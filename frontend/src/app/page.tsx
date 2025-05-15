@@ -97,12 +97,6 @@ export default function Home() {
       selectedFilesChat.forEach((f) => form.append("attachments", f));
     }
 
-    const res = await fetch(
-      `http://${SERVER_DOMAIN}/api/chat/${CONV_ID}`,
-      { method: "POST", body: form }
-    );
-    if (!res.ok) throw new Error(await res.text());
-
     try {
       const res = await fetch(`http://${SERVER_DOMAIN}/api/chat/${CONV_ID}`, {
         method: "POST",
@@ -136,12 +130,6 @@ export default function Home() {
     form.append("senderId", USER_ID);
     form.append("receiverId", AI_USER_ID);
     form.append("content", text || "");
-
-    const res = await fetch(
-      `http://${SERVER_DOMAIN}/api/chat/${CONV_ID}`,
-      { method: "POST", body: form }
-    );
-    if (!res.ok) throw new Error(await res.text());
 
     try {
       const res = await fetch(`http://${SERVER_DOMAIN}/api/chat/${CONV_ID}`, {
