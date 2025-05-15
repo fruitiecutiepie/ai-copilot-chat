@@ -116,7 +116,7 @@ export default function ChatWindow(
                 );
               })}
 
-              <div className="text-xs text-right text-gray-500 mt-1">
+              <div className="text-xs text-right text-gray-500 mt-1 dark:text-gray-300">
                 {new Date(msg.timestamp).toLocaleTimeString()}
               </div>
             </div>

@@ -194,12 +194,12 @@ export default function Home() {
         />
       </div> */}
       <div
-        className="p-4 grid grid-cols-2 lg:grid-cols-3 gap-4"
+        className="p-4 grid grid-cols-2 lg:grid-cols-5 gap-4"
         style={{ fontSize: "0.8rem" }}
       >
         {showSpacer && <div />}
         <div
-          className="flex flex-col w-full border rounded p-4 border-gray-300"
+          className="flex flex-col w-full border rounded p-4 border-gray-300 lg:col-span-2"
         >
           <div
             className="flex items-center justify-between pb-4 h-16"
@@ -298,7 +298,7 @@ export default function Home() {
         </div>
         {chatLlmOpen && (
           <div
-            className="flex flex-col w-full border rounded p-4 border-gray-300"
+            className="flex flex-col w-full border rounded p-4 border-gray-300 lg:col-span-2"
           >
             <div
               className="flex items-center justify-between pb-4 h-16"
