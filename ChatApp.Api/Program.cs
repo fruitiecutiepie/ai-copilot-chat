@@ -10,7 +10,6 @@ using ChatApp.Api.Services.Llm;
 using ChatApp.Api.Ports;
 using ChatApp.Api.Services.Llm.Ui;
 using ChatApp.Api.Services.Db;
-using ChatApp.Api.Services.Fs;
 using ChatApp.Api.Models;
 using Dapper;
 using System.Data;
@@ -125,7 +124,6 @@ public class Program
     builder.Services.AddScoped<ILlmService, LlmService>();
 
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<IFsService, FsService>();
 
     // HTTP Clients
     builder.Services.AddSingleton(sp => {
