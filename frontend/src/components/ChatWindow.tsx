@@ -84,7 +84,7 @@ export default function ChatWindow(
                   return (
                     <Image
                       key={i}
-                      src={`http://${SERVER_DOMAIN}/uploads/${CONV_ID}/${url}`}
+                      src={`http://${SERVER_DOMAIN}/uploads/${CONV_ID}/${atch.fileName}`}
                       alt={`attach-${i}`}
                       className="mt-2 max-w-full h-auto rounded"
                       style={{ maxWidth: "100%", height: "auto" }}
