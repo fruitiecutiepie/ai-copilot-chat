@@ -9,7 +9,8 @@ import { useSignalRConnection } from "@/hooks/useSignalRConnection";
 export const SERVER_DOMAIN = "localhost:5000";
 
 export const USER_ID = "A1b2C3d4E5f6G7h8I9j0K";
-export const AI_USER_ID = "AI_ASSISTANT";
+export const OTHER_USER_ID = "B1c2D3e4F5g6H7i8J9k0L";
+export const AI_USER_ID = "assistant";
 export const CONV_ID = "XyZ123abcDEF456ghiJKL";
 
 export default function Home() {
@@ -84,8 +85,8 @@ export default function Home() {
     if (!text && selectedFilesChat.length === 0) return;
 
     const form = new FormData();
-    form.append("convId", CONV_ID);
-    form.append("userId", USER_ID);
+    form.append("senderId", USER_ID);
+    form.append("receiverId", OTHER_USER_ID);
     form.append("content", text || "");
     if (selectedFilesChat.length > 0) {
       selectedFilesChat.forEach((f) => form.append("attachments", f));
@@ -306,34 +307,67 @@ export default function Home() {
                 AI Copilot
               </h1>
             </div>
-            <div
-              className="flex flex-col h-full space-y-2"
-            >
-              <ChatWindow
-                messages={messagesLlm}
-              />
-            </div>
-            {connRefChat.current && (
+            {connLlm ? (
+              <>
+                <div
+                  className="flex flex-col h-full space-y-2"
+                >
+                  <ChatWindow
+                    messages={[
+                      ...messagesLlm,
+                      llmStream
+                        ? {
+                          id: "streaming",
+                          senderId: AI_USER_ID,
+                          receiverId: USER_ID,
+                          convId: CONV_ID,
+                          content: llmStream,
+                          timestamp: new Date().toISOString(),
+                          attachments: []
+                        }
+                        : null
+                    ].filter(Boolean as any)}
+                  />
+                </div>
+                <div
+                  className="flex flex-col space-y-2"
+                >
+                  <div
+                    className="flex"
+                  >
+                    <input
+                      ref={inputRefLlm}
+                      type="text"
+                      className="flex-1 border border-gray-300 rounded-l px-3 py-2"
+                      placeholder="Type a message"
+                      onKeyDown={(e) => e.key === "Enter" && sendChatLlm()}
+                    />
+                    <button
+                      onClick={sendChatLlm}
+                      className="bg-blue-600 text-white p-2 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
               <div
-                className="flex flex-col space-y-2"
+                className="flex items-center justify-center h-full"
+                style={{ fontSize: "0.8rem" }}
               >
                 <div
-                  className="flex"
+                  className="text-xs text-gray-500"
                 >
-                  <input
-                    ref={inputRefLlm}
-                    type="text"
-                    className="flex-1 border border-gray-300 rounded-l px-3 py-2"
-                    placeholder="Type a message"
-                    onKeyDown={(e) => e.key === "Enter" && sendChatLlm()}
-                  />
-                  <button
-                    onClick={sendChatLlm}
-                    className="bg-blue-600 text-white p-2 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                  >
-                    Send
-                  </button>
+                  Connecting to LLM...
                 </div>
+                <div
+                  className="w-2 h-2 rounded-full bg-green-500 ml-2"
+                  style={{
+                    animation: "pulse 1s infinite",
+                    opacity: 0.5,
+                  }}
+                />
               </div>
             )}
           </div>

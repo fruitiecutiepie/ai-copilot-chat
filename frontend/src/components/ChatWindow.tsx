@@ -50,16 +50,16 @@ export default function ChatWindow(
       {messages.map((msg, idx) => (
         <div
           key={idx}
-          className={`mb-2 flex flex-row ${msg.userId === USER_ID ? "justify-end" : ""
+          className={`mb-2 flex flex-row ${msg.senderId === USER_ID ? "justify-end" : ""
             }`}
         >
           <div
-            className={`flex flex-col py-1 ${msg.userId === USER_ID ? "items-end" : "items-start"
+            className={`flex flex-col py-1 ${msg.senderId === USER_ID ? "items-end" : "items-start"
               }`}
           >
-            {msg.userId !== USER_ID && (
+            {msg.senderId !== USER_ID && (
               <div className="flex items-center mb-1" style={{ fontSize: "0.8rem" }}>
-                <div className="text-xs text-gray-500">{msg.userId}</div>
+                <div className="text-xs text-gray-500">{msg.senderId}</div>
               </div>
             )}
             <div className="rounded px-3 py-1 max-w-xs break-words bg-blue-100 dark:bg-gray-500">

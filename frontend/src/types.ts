@@ -20,9 +20,10 @@ export type ChatMessageAttachment = z.infer<typeof ChatMessageAttachmentSchema>;
 
 export const ChatMessageSchema = z.object({
   id: z.string(),
-  userId: z.string(),
-
   convId: z.string(),
+
+  senderId: z.string(),
+  receiverId: z.string(),
 
   content: z.string(),
   timestamp: z.string(),
